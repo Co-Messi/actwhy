@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>actwhy — which GitHub Actions workflows will fire, and why not?</title>
+  <meta name="description" content="Paste your GitHub Actions YAML, simulate a push or PR, and instantly see which workflows fire — and exactly why the others don't trigger. Find out why your workflow didn't run, before you push. 100% client-side." />
+  <meta name="theme-color" content="#08090b" />
+  <link rel="canonical" href="https://actwhy.vercel.app" />
+  <meta name="color-scheme" content="dark" />
+
+  <!-- Open Graph / Twitter -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="actwhy" />
+  <meta property="og:title" content="actwhy — which GitHub Actions workflows will fire, and why not?" />
+  <meta property="og:description" content="Simulate a push or PR and instantly see which workflows fire — and the exact filter that stops the rest. Never guesses." />
+  <meta property="og:url" content="https://actwhy.vercel.app" />
+  <meta property="og:image" content="https://actwhy.vercel.app/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="actwhy — which GitHub Actions workflows will fire, and why not?" />
+  <meta name="twitter:description" content="Simulate a push or PR and instantly see which workflows fire — and the exact filter that stops the rest." />
+  <meta name="twitter:image" content="https://actwhy.vercel.app/og.png" />
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2308090b'/%3E%3Ctext x='16' y='23' font-family='monospace' font-size='20' font-weight='700' text-anchor='middle' fill='%2338e6f5'%3E%3F%3C/text%3E%3C/svg%3E" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "actwhy",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Any",
+    "description": "Know which GitHub Actions workflows will fire — and exactly why the others won't — before you push. A three-valued (fires / skipped / unknown) trigger explainer built on GitHub's own workflow parser.",
+    "url": "https://actwhy.vercel.app",
+    "downloadUrl": "https://www.npmjs.com/package/actwhy",
+    "softwareHelp": "https://github.com/Co-Messi/actwhy",
+    "license": "https://opensource.org/licenses/MIT",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "actwhy" }
+  }
+  </script>
+
+  <script src="/app.js" defer></script>
+
+  <style>
+    /* ============================== tokens ============================== */
+    :root {
+      --bg:      #08090b;
+      --bg-1:    #0c0e12;
+      --bg-2:    #111419;
+      --bg-3:    #171b22;
+      --line:    #1e232c;
+      --line-2:  #2b323d;
+      --ink:     #e7ecf3;
+      --ink-dim: #9aa4b2;
+      --ink-faint:#8b95a4;
+      --accent:  #38e6f5;
+      --accent-2:#7ff3ff;
+      --accent-ink: #04171a;
+      --accent-glow: rgba(56, 230, 245, .5);
+      --fire:    #45dd82;
+      --skip:    #ff6159;
+      --unknown: #ffb84d;
+      --error:   #c77dff;
+      --mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", "Cascadia Code",
+              "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      --u: 8px;
+      --radius: 10px;
+      --maxw: 1280px;
+    }
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      font-family: var(--mono);
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+      font-size: 15px;
+      letter-spacing: -0.01em;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden;
+    }
+
+    /* atmosphere: phosphor glow + grain, fixed so it never scrolls */
+    body::before {
+      content: "";
+      position: fixed; inset: 0; z-index: -2; pointer-events: none;
+      background:
+        radial-gradient(70% 55% at 50% -8%, rgba(56,230,245,.10), transparent 60%),
+        radial-gradient(50% 40% at 92% 4%, rgba(199,125,255,.06), transparent 55%),
+        radial-gradient(60% 50% at 4% 100%, rgba(69,221,130,.05), transparent 55%);
+    }
+    body::after {
+      content: "";
+      position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .05;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-2); }
+
+    ::selection { background: rgba(56,230,245,.28); color: #fff; }
+
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+
+    .skip-link {
+      position: absolute; left: -999px; top: 0; z-index: 100;
+      background: var(--accent); color: var(--accent-ink);
+      padding: 8px 14px; border-radius: 0 0 8px 0; font-weight: 700;
+    }
+    .skip-link:focus { left: 0; }
+
+    .wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+    /* ============================== header ============================= */
+    header.top {
+      position: sticky; top: 0; z-index: 40;
+      backdrop-filter: blur(10px);
+      background: linear-gradient(to bottom, rgba(8,9,11,.92), rgba(8,9,11,.72));
+      border-bottom: 1px solid var(--line);
+    }
+    .top__row {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 56px;
+    }
+    .brand { display: flex; align-items: baseline; gap: 0; font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+    .brand .b1 { color: var(--ink); }
+    .brand .b2 { color: var(--accent); }
+    .brand .cursor {
+      display: inline-block; width: 9px; height: 18px; margin-left: 3px;
+      background: var(--accent); transform: translateY(2px);
+      box-shadow: 0 0 10px var(--accent-glow);
+      animation: blink 1.1s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    .top__nav { display: flex; align-items: center; gap: 18px; }
+    .top__nav a.navlink { color: var(--ink-dim); font-size: 13.5px; }
+    .top__nav a.navlink:hover { color: var(--ink); }
+    .ghpill {
+      display: inline-flex; align-items: center; gap: 7px;
+      border: 1px solid var(--line-2); border-radius: 999px;
+      padding: 6px 13px; color: var(--ink); font-size: 13px;
+      background: var(--bg-2);
+    }
+    .ghpill:hover { border-color: var(--accent); color: var(--ink); }
+    .ghpill svg { width: 15px; height: 15px; fill: currentColor; }
+
+    /* =============================== hero ============================== */
+    .hero { padding: 26px 0 12px; }
+    .hero__eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--ink-dim); letter-spacing: 0.06em;
+      text-transform: uppercase; margin-bottom: 13px;
+      border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px;
+      background: var(--bg-1);
+    }
+    .hero__eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fire); box-shadow: 0 0 8px var(--fire); }
+    h1.hero__title {
+      margin: 0 0 12px; font-size: clamp(25px, 2.9vw, 38px); line-height: 1.16;
+      font-weight: 700; letter-spacing: -0.03em; max-width: 30ch;
+    }
+    h1.hero__title .fire { color: var(--fire); }
+    h1.hero__title .why  { color: var(--accent); }
+    h1.hero__title .skip { color: var(--skip); }
+    .hero__sub { margin: 0 0 16px; color: var(--ink-dim); font-size: 15px; max-width: 66ch; }
+    .hero__cta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 15px; }
+
+    .cmd {
+      display: inline-flex; align-items: center; gap: 12px;
+      background: var(--bg-2); border: 1px solid var(--line-2);
+      border-radius: var(--radius); padding: 10px 12px 10px 15px;
+      font-size: 14px;
+    }
+    .cmd .prompt { color: var(--fire); user-select: none; }
+    .cmd code { color: var(--ink); }
+    .copybtn {
+      border: 1px solid var(--line-2); background: var(--bg-3); color: var(--ink-dim);
+      border-radius: 7px; padding: 5px 9px; cursor: pointer; font-family: var(--mono);
+      font-size: 12px; position: relative; transition: color .15s, border-color .15s, background .15s;
+    }
+    .copybtn:hover { color: var(--ink); border-color: var(--accent); }
+    .copybtn.copied { color: var(--fire); border-color: var(--fire); }
+    .copybtn[data-tip]::after {
+      content: attr(data-tip); position: absolute; bottom: calc(100% + 7px); right: 0;
+      background: var(--fire); color: #04120a; font-size: 11px; font-weight: 700;
+      padding: 3px 7px; border-radius: 5px; white-space: nowrap;
+    }
+
+    .trivalue { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12.5px; color: var(--ink-faint); }
+    .tv { display: inline-flex; align-items: center; gap: 6px; }
+    .tv b { font-weight: 700; letter-spacing: 0.04em; }
+    .tv[data-v="fires"] b { color: var(--fire); }
+    .tv[data-v="skipped"] b { color: var(--skip); }
+    .tv[data-v="unknown"] b { color: var(--unknown); }
+    .trivalue .sep { color: var(--line-2); }
+
+    /* ============================ playground =========================== */
+    .play { padding: 8px 0 56px; }
+    .play__grid {
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 20px; align-items: start;
+    }
+
+    .panel {
+      position: relative; background: var(--bg-1); border: 1px solid var(--line);
+      border-radius: var(--radius); min-width: 0;
+    }
+    .panel::before, .panel::after {
+      content: ""; position: absolute; width: 9px; height: 9px; pointer-events: none;
+      border-color: var(--line-2); border-style: solid; border-width: 0;
+    }
+    .panel::before { top: -1px; left: -1px; border-top-width: 1px; border-left-width: 1px; border-top-left-radius: var(--radius); }
+    .panel::after  { bottom: -1px; right: -1px; border-bottom-width: 1px; border-right-width: 1px; border-bottom-right-radius: var(--radius); }
+    .panel--out { min-height: 520px; }
+
+    .panel__bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 10px 12px; border-bottom: 1px solid var(--line);
+    }
+    .panel__label { font-size: 12px; color: var(--ink-dim); letter-spacing: 0.02em; }
+    .panel__label .hash { color: var(--accent); }
+
+    /* toolbar controls */
+    .tool { display: flex; align-items: center; gap: 8px; }
+    select.select, .btn {
+      font-family: var(--mono); font-size: 12.5px;
+      background: var(--bg-2); border: 1px solid var(--line-2); color: var(--ink);
+      border-radius: 7px; padding: 6px 10px; cursor: pointer;
+    }
+    select.select:hover, .btn:hover { border-color: var(--accent); }
+    .btn--share { display: inline-flex; align-items: center; gap: 6px; }
+    .btn--share svg { width: 13px; height: 13px; fill: currentColor; }
+    .share-feedback { font-size: 11.5px; color: var(--fire); opacity: 0; transition: opacity .2s; }
+    .share-feedback--show { opacity: 1; }
+
+    /* tabs */
+    .tabs { display: flex; align-items: stretch; gap: 4px; padding: 8px 10px 0; flex-wrap: wrap; }
+    .tab {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: var(--bg-2); border: 1px solid var(--line); border-bottom: none;
+      color: var(--ink-dim); border-radius: 7px 7px 0 0; padding: 7px 10px;
+      font-size: 12.5px; cursor: pointer; user-select: none; position: relative; top: 1px;
+    }
+    .tab:hover { color: var(--ink); }
+    .tab--active { background: var(--bg); color: var(--ink); border-color: var(--line-2); }
+    .tab--active::after {
+      content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 2px;
+      background: var(--accent); box-shadow: 0 0 8px var(--accent-glow);
+    }
+    .tab__close {
+      border: none; background: none; color: var(--ink-faint); cursor: pointer;
+      font-size: 15px; line-height: 1; padding: 0 1px; border-radius: 4px; font-family: var(--mono);
+    }
+    .tab__close:hover { color: var(--skip); }
+    .tab--add { color: var(--accent); font-weight: 700; padding: 7px 11px; }
+    .tab__rename {
+      font-family: var(--mono); font-size: 12.5px; background: var(--bg-3);
+      border: 1px solid var(--accent); color: var(--ink); border-radius: 4px; padding: 2px 5px; width: 11ch;
+    }
+
+    /* editor */
+    .editor-wrap { padding: 0 10px 10px; }
+    textarea.editor {
+      width: 100%; min-height: 322px; resize: vertical;
+      background: var(--bg); color: var(--ink); border: 1px solid var(--line-2);
+      border-radius: 0 8px 8px 8px; padding: 14px;
+      font-family: var(--mono); font-size: 13px; line-height: 1.62; tab-size: 2;
+      white-space: pre; overflow-wrap: normal; overflow-x: auto;
+    }
+    textarea.editor:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+    /* event controls */
+    .controls { border-top: 1px solid var(--line); padding: 14px 14px 4px; }
+    .field { margin-bottom: 14px; }
+    .field > label, .field-label {
+      display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em;
+      color: var(--ink-faint); margin-bottom: 6px;
+    }
+    .seg { display: inline-flex; background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 3px; gap: 3px; }
+    .seg__btn {
+      font-family: var(--mono); font-size: 12.5px; border: none; background: none;
+      color: var(--ink-dim); padding: 6px 12px; border-radius: 6px; cursor: pointer;
+    }
+    .seg__btn:hover { color: var(--ink); }
+    .seg__btn--active { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    input.inp, select.inp, textarea.inp {
+      width: 100%; font-family: var(--mono); font-size: 13px;
+      background: var(--bg-2); border: 1px solid var(--line-2); color: var(--ink);
+      border-radius: 7px; padding: 8px 10px;
+    }
+    input.inp:focus, select.inp:focus, textarea.inp:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    textarea.inp { resize: vertical; min-height: 62px; white-space: pre; }
+    .hint { font-size: 11px; color: var(--ink-faint); margin-top: 5px; }
+    .hint .u { color: var(--unknown); }
+
+    details.advanced { border-top: 1px dashed var(--line); margin-top: 4px; padding-top: 10px; }
+    details.advanced > summary {
+      cursor: pointer; font-size: 11.5px; color: var(--ink-dim); list-style: none;
+      display: flex; align-items: center; gap: 7px; user-select: none;
+    }
+    details.advanced > summary::-webkit-details-marker { display: none; }
+    details.advanced > summary::before { content: "▸"; color: var(--accent); transition: transform .15s; }
+    details.advanced[open] > summary::before { transform: rotate(90deg); }
+    details.advanced > .field { margin-top: 12px; }
+    [hidden] { display: none !important; }
+
+    /* =============================== results =========================== */
+    .results { padding: 12px; }
+    .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 80px 20px; color: var(--ink-faint); text-align: center; }
+    .empty__glyph { font-size: 34px; color: var(--line-2); }
+
+    .summary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 4px 4px 14px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+    .summary__counts { display: flex; gap: 8px; flex-wrap: wrap; }
+    .count {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid var(--line-2); border-radius: 8px; padding: 5px 10px;
+      font-size: 12.5px; background: var(--bg-2);
+    }
+    .count__glyph { font-weight: 700; }
+    .count__n { font-weight: 700; }
+    .count__label { color: var(--ink-dim); }
+    .count[data-zero="true"] { opacity: .42; }
+    .count[data-verdict="fires"]   { border-color: rgba(69,221,130,.35); }
+    .count[data-verdict="fires"]   .count__glyph, .count[data-verdict="fires"] .count__n   { color: var(--fire); }
+    .count[data-verdict="skipped"] .count__glyph, .count[data-verdict="skipped"] .count__n { color: var(--skip); }
+    .count[data-verdict="unknown"] .count__glyph, .count[data-verdict="unknown"] .count__n { color: var(--unknown); }
+    .count[data-verdict="error"]   .count__glyph, .count[data-verdict="error"] .count__n   { color: var(--error); }
+    .summary__totals { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-faint); }
+
+    /* banners */
+    .banner { border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+    .banner--nothing {
+      border: 1px solid rgba(255,97,89,.5);
+      background: linear-gradient(180deg, rgba(255,97,89,.14), rgba(255,97,89,.05));
+      box-shadow: inset 0 0 0 1px rgba(255,97,89,.08), 0 0 34px rgba(255,97,89,.10);
+    }
+    .banner--maybe {
+      border: 1px solid rgba(255,184,77,.45);
+      background: linear-gradient(180deg, rgba(255,184,77,.12), rgba(255,184,77,.04));
+    }
+    .banner__head { display: flex; align-items: center; gap: 11px; }
+    .banner__glyph { font-size: 20px; }
+    .banner--nothing .banner__glyph { color: var(--skip); animation: pulse 2s ease-in-out infinite; }
+    .banner--maybe .banner__glyph { color: var(--unknown); }
+    @keyframes pulse { 50% { opacity: .55; } }
+    .banner__title { font-size: 16px; font-weight: 700; letter-spacing: 0.01em; }
+    .banner--nothing .banner__title { color: #ff8b85; }
+    .banner--maybe .banner__title { color: var(--unknown); }
+    .banner__sub { margin: 9px 0 0; color: var(--ink-dim); font-size: 13px; }
+    .banner__miss {
+      margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(255,255,255,.10);
+      display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: 12.5px;
+    }
+    .banner__miss-label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; color: var(--ink-faint); }
+    .banner__miss-file { color: var(--ink); font-weight: 700; }
+    .banner__miss-msg { color: var(--ink-dim); }
+    .banner__miss-detail { flex-basis: 100%; color: var(--ink-faint); white-space: pre-wrap; }
+
+    /* workflow cards */
+    .wf-list { display: flex; flex-direction: column; gap: 10px; }
+    .wf {
+      background: var(--bg-2); border: 1px solid var(--line);
+      border-left: 3px solid var(--line-2); border-radius: 8px; padding: 12px 14px;
+    }
+    .wf[data-verdict="fires"]   { border-left-color: var(--fire); }
+    .wf[data-verdict="skipped"] { border-left-color: var(--skip); }
+    .wf[data-verdict="unknown"] { border-left-color: var(--unknown); }
+    .wf[data-verdict="error"]   { border-left-color: var(--error); }
+    .wf__head { display: flex; align-items: center; gap: 10px; }
+    .wf__title { display: flex; align-items: baseline; gap: 9px; flex: 1; min-width: 0; }
+    .wf__file { font-weight: 700; font-size: 14px; }
+    .wf__name { color: var(--ink-faint); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .glyph { font-weight: 700; width: 18px; text-align: center; flex: none; }
+    .glyph[data-verdict="fires"]   { color: var(--fire); text-shadow: 0 0 10px rgba(69,221,130,.5); }
+    .glyph[data-verdict="skipped"] { color: var(--skip); }
+    .glyph[data-verdict="unknown"] { color: var(--unknown); }
+    .glyph[data-verdict="error"]   { color: var(--error); }
+
+    .badge {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.09em; padding: 3px 8px;
+      border-radius: 5px; border: 1px solid; flex: none;
+    }
+    .badge[data-verdict="fires"]   { color: var(--fire);    border-color: rgba(69,221,130,.4);  background: rgba(69,221,130,.10); }
+    .badge[data-verdict="skipped"] { color: var(--skip);    border-color: rgba(255,97,89,.4);   background: rgba(255,97,89,.10); }
+    .badge[data-verdict="unknown"] { color: var(--unknown); border-color: rgba(255,184,77,.4);  background: rgba(255,184,77,.10); }
+    .badge[data-verdict="error"]   { color: var(--error);   border-color: rgba(199,125,255,.4); background: rgba(199,125,255,.10); }
+
+    .reason { display: flex; gap: 8px; margin-top: 9px; padding-left: 28px; }
+    .reason__msg { font-size: 13px; color: var(--ink); white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; }
+    .reason__detail { font-size: 12px; color: var(--ink-faint); margin-top: 3px; white-space: pre-wrap; word-break: break-word; }
+
+    .wf__warnings { margin-top: 10px; padding-left: 28px; }
+    .warn {
+      display: flex; gap: 8px; padding: 9px 11px; border-radius: 7px;
+      background: rgba(255,184,77,.08); border: 1px solid rgba(255,184,77,.24); margin-top: 8px;
+    }
+    .warn__glyph { color: var(--unknown); flex: none; }
+    .warn__msg { font-size: 12.5px; color: #ffd79a; }
+    .warn__detail { font-size: 12px; color: var(--ink-faint); margin-top: 3px; white-space: pre-wrap; }
+
+    /* job rows */
+    .jobs { margin-top: 12px; padding-left: 28px; display: flex; flex-direction: column; gap: 6px; position: relative; }
+    .jobs::before { content: ""; position: absolute; left: 12px; top: 2px; bottom: 6px; width: 1px; background: var(--line); }
+    .job { background: var(--bg-1); border: 1px solid var(--line); border-radius: 7px; padding: 8px 11px; }
+    .job__head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    .job__id { display: flex; align-items: baseline; gap: 8px; flex: 1; min-width: 0; }
+    .job__name { font-weight: 700; font-size: 13px; }
+    .job__alias { color: var(--ink-faint); font-size: 11.5px; }
+    .job__meta { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip { font-size: 11px; color: var(--ink-dim); border: 1px solid var(--line-2); border-radius: 5px; padding: 2px 7px; background: var(--bg-2); }
+    .chip--matrix { color: var(--accent); border-color: rgba(56,230,245,.28); }
+    .job__note { font-size: 11.5px; color: var(--ink-faint); margin-top: 6px; padding-left: 27px; }
+    .job .reason { margin-top: 6px; padding-left: 27px; }
+    .job .reason__msg { font-size: 12.5px; }
+
+    /* ============================== sections ========================== */
+    section.band { padding: 30px 0; border-top: 1px solid var(--line); }
+    .band__h { font-size: 12px; color: var(--accent); letter-spacing: 0.04em; margin: 0 0 22px; }
+    .band__h::before { content: "// "; color: var(--ink-faint); }
+
+    .benefits { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .benefit { background: var(--bg-1); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+    .benefit h3 { margin: 0 0 9px; font-size: 15px; letter-spacing: -0.01em; }
+    .benefit h3 .k { color: var(--accent); }
+    .benefit p { margin: 0; color: var(--ink-dim); font-size: 13.5px; }
+    .benefit .mono-quote { color: var(--fire); }
+
+    .compare { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .cmp { border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; background: var(--bg-1); }
+    .cmp--me { border-color: rgba(56,230,245,.4); background: linear-gradient(180deg, rgba(56,230,245,.06), transparent); }
+    .cmp__name { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+    .cmp--me .cmp__name { color: var(--accent); }
+    .cmp__role { font-size: 12.5px; color: var(--ink-dim); }
+    .cmp__tag { display: inline-block; margin-top: 12px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); border: 1px solid var(--line-2); border-radius: 5px; padding: 3px 8px; }
+
+    .install-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 560px; }
+    .install-cell { background: var(--bg-2); border: 1px solid var(--line-2); border-radius: var(--radius); padding: 13px 15px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .install-cell .prompt { color: var(--fire); }
+    .install-cell code { color: var(--ink); font-size: 13.5px; }
+
+    /* =============================== footer =========================== */
+    footer.foot { border-top: 1px solid var(--line); padding: 26px 0 44px; margin-top: 8px; }
+    .foot__row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 12.5px; color: var(--ink-faint); }
+    .foot__links { display: flex; gap: 16px; flex-wrap: wrap; }
+    .foot__links a { color: var(--ink-dim); }
+    .foot__links a:hover { color: var(--accent); }
+    .foot__built { color: var(--ink-faint); }
+    .foot__built a { color: var(--ink-dim); }
+
+    /* ============================= responsive ========================= */
+    @media (max-width: 900px) {
+      .play__grid { grid-template-columns: minmax(0, 1fr); }
+      .benefits, .compare { grid-template-columns: minmax(0, 1fr); }
+      .panel--out { min-height: 0; }
+      .install-grid { grid-template-columns: minmax(0, 1fr); max-width: none; }
+    }
+    @media (max-width: 560px) {
+      .wrap { padding: 0 16px; }
+      .top__nav a.navlink { display: none; }
+      .row2 { grid-template-columns: 1fr; }
+      .panel__bar { flex-wrap: wrap; }
+      .tool { flex: 1 1 100%; min-width: 0; }
+      .tool .select { flex: 1 1 auto; min-width: 0; }
+      .summary { flex-wrap: wrap; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#playground">Skip to playground</a>
+
+  <header class="top">
+    <div class="wrap top__row">
+      <div class="brand" aria-label="actwhy">
+        <span class="b1">act</span><span class="b2">why</span><span class="cursor" aria-hidden="true"></span>
+      </div>
+      <nav class="top__nav" aria-label="Primary">
+        <a class="navlink" href="#why">Why</a>
+        <a class="navlink" href="#compare">Compare</a>
+        <a class="navlink" href="#install">Install</a>
+        <a class="ghpill" href="https://github.com/Co-Messi/actwhy" rel="noopener">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          <span>GitHub</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <span class="hero__eyebrow"><span class="dot" aria-hidden="true"></span> GitHub Actions trigger explainer</span>
+        <h1 class="hero__title">
+          Know which GitHub Actions workflows <span class="fire">will fire</span> — and exactly <span class="why">why</span> the others <span class="skip">won't</span> — before you push.
+        </h1>
+        <p class="hero__sub">
+          Paste your GitHub Actions YAML, simulate a push or pull request, and get an instant, honest verdict for every workflow — down to the exact filter or <code>if:</code> condition that stops it. Runs entirely in your browser.
+        </p>
+        <div class="hero__cta">
+          <div class="cmd">
+            <span class="prompt" aria-hidden="true">$</span>
+            <code>npx actwhy</code>
+            <button class="copybtn" type="button" data-copy="npx actwhy" aria-label="Copy npx actwhy">copy</button>
+          </div>
+          <a class="ghpill" href="https://github.com/Co-Messi/actwhy" rel="noopener">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            <span>Star on GitHub</span>
+          </a>
+        </div>
+        <div class="trivalue">
+          <span class="tv" data-v="fires"><b>✔ FIRES</b></span><span class="sep">/</span>
+          <span class="tv" data-v="skipped"><b>✘ SKIPPED</b></span><span class="sep">/</span>
+          <span class="tv" data-v="unknown"><b>? UNKNOWN</b></span>
+          <span class="sep">—</span> three verdicts, never a guess.
+        </div>
+      </div>
+    </section>
+
+    <section class="play" id="playground">
+      <div class="wrap play__grid">
+        <!-- LEFT: editor + event controls -->
+        <div class="panel" role="region" aria-label="Workflow editor and event controls">
+          <div class="panel__bar">
+            <span class="panel__label"><span class="hash">#</span> workflows</span>
+            <div class="tool">
+              <label class="field-label" for="example-select" style="margin:0;position:absolute;left:-9999px;">Load an example</label>
+              <select class="select" id="example-select" aria-label="Load an example scenario"></select>
+              <button class="btn btn--share" id="share-btn" type="button" aria-label="Copy a shareable link">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 5.5a2.5 2.5 0 10-2.45-3L5.9 4.06a2.5 2.5 0 100 3.88l2.65 1.56A2.5 2.5 0 1011 8.5a2.49 2.49 0 00-1.53.53L6.9 7.5a2.51 2.51 0 000-1l2.57-1.53c.43.33.96.53 1.53.53z"/></svg>
+                share
+              </button>
+              <span class="share-feedback" id="share-feedback" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+
+          <div class="tabs" id="tabs" role="tablist" aria-label="Workflow files"></div>
+          <div class="editor-wrap">
+            <label for="editor" style="position:absolute;left:-9999px;">Workflow YAML</label>
+            <textarea class="editor" id="editor" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Workflow YAML editor"></textarea>
+          </div>
+
+          <div class="controls">
+            <div class="field">
+              <span class="field-label" id="event-label">Simulated event</span>
+              <div class="seg" role="group" aria-labelledby="event-label">
+                <button class="seg__btn" type="button" data-event="push" aria-pressed="true">push</button>
+                <button class="seg__btn" type="button" data-event="pull_request" aria-pressed="false">pull request</button>
+                <button class="seg__btn" type="button" data-event="tag" aria-pressed="false">tag push</button>
+              </div>
+            </div>
+
+            <div id="push-fields" class="field">
+              <label for="branch">Branch</label>
+              <input class="inp" id="branch" type="text" placeholder="main" autocapitalize="off" autocorrect="off" spellcheck="false" />
+            </div>
+
+            <div id="tag-fields" class="field" hidden>
+              <label for="tag">Tag</label>
+              <input class="inp" id="tag" type="text" placeholder="v1.0.0" autocapitalize="off" autocorrect="off" spellcheck="false" />
+            </div>
+
+            <div id="pr-fields" hidden>
+              <div class="field row2">
+                <div>
+                  <label for="pr-base">Base branch</label>
+                  <input class="inp" id="pr-base" type="text" placeholder="main" autocapitalize="off" autocorrect="off" spellcheck="false" />
+                </div>
+                <div>
+                  <label for="pr-head">Head branch</label>
+                  <input class="inp" id="pr-head" type="text" placeholder="feature/x" autocapitalize="off" autocorrect="off" spellcheck="false" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="pr-activity">Activity type</label>
+                <select class="inp" id="pr-activity">
+                  <option value="opened">opened</option>
+                  <option value="synchronize">synchronize</option>
+                  <option value="reopened">reopened</option>
+                  <option value="ready_for_review">ready_for_review</option>
+                  <option value="edited">edited</option>
+                  <option value="closed">closed</option>
+                  <option value="labeled">labeled</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="changed">Changed files</label>
+              <textarea class="inp" id="changed" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="src/index.ts&#10;docs/readme.md"></textarea>
+              <div class="hint">One path per line. Leave blank = files <span class="u">unknown</span> → actwhy returns UNKNOWN for any <code>paths</code> filter instead of guessing.</div>
+            </div>
+
+            <details class="advanced" id="commit-field">
+              <summary>Advanced — commit message</summary>
+              <div class="field">
+                <label for="commit-message">Commit message</label>
+                <textarea class="inp" id="commit-message" spellcheck="false" placeholder="e.g. fix: patch parser [skip ci]"></textarea>
+                <div class="hint">Used by conditions like <code>contains(github.event.head_commit.message, '[skip ci]')</code>.</div>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- RIGHT: verdicts -->
+        <div class="panel panel--out" role="region" aria-label="Verdicts">
+          <div class="panel__bar">
+            <span class="panel__label"><span class="hash">#</span> verdict</span>
+            <span class="panel__label" style="color:var(--ink-faint)">re-evaluated live</span>
+          </div>
+          <div class="results" id="results" aria-live="polite" aria-atomic="false"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="why">
+      <div class="wrap">
+        <h2 class="band__h">why it exists</h2>
+        <div class="benefits">
+          <div class="benefit">
+            <h3>Kill the <span class="k">push-debug-push</span> loop</h3>
+            <p>Stop committing “fix trigger 🙏”, pushing, waiting for the runner, and finding nothing ran. actwhy answers before you push — in milliseconds, offline.</p>
+          </div>
+          <div class="benefit">
+            <h3>Three-valued <span class="k">honesty</span></h3>
+            <p>When it can't know — the changed files aren't specified, a matrix is dynamic — it says <span class="mono-quote">UNKNOWN</span>, not maybe. <b>actwhy never guesses.</b></p>
+          </div>
+          <div class="benefit">
+            <h3>GitHub's <span class="k">own</span> parser</h3>
+            <p>Built on <code>@actions/workflow-parser</code> and <code>@actions/expressions</code> — the same MIT-licensed libraries GitHub uses to read your YAML and evaluate <code>${{ }}</code>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="compare">
+      <div class="wrap">
+        <h2 class="band__h">how it's different</h2>
+        <div class="compare">
+          <div class="cmp">
+            <div class="cmp__name">act</div>
+            <div class="cmp__role">Runs your workflows locally in Docker to actually execute the jobs.</div>
+            <span class="cmp__tag">executes</span>
+          </div>
+          <div class="cmp cmp--me">
+            <div class="cmp__name">actwhy</div>
+            <div class="cmp__role">Explains the trigger decision instantly — which workflows fire, and the exact reason the rest don't.</div>
+            <span class="cmp__tag">explains</span>
+          </div>
+          <div class="cmp">
+            <div class="cmp__name">actionlint</div>
+            <div class="cmp__role">Lints workflow syntax and catches static mistakes in your YAML.</div>
+            <span class="cmp__tag">lints</span>
+          </div>
+        </div>
+        <p style="margin:16px 0 0;color:var(--ink-faint);font-size:12.5px;">Complementary tools — actwhy answers the one question the others don't: <em>will it even trigger?</em></p>
+      </div>
+    </section>
+
+    <section class="band" id="install">
+      <div class="wrap">
+        <h2 class="band__h">install</h2>
+        <div class="install-grid">
+          <div class="install-cell">
+            <span><span class="prompt" aria-hidden="true">$ </span><code>npx actwhy</code></span>
+            <button class="copybtn" type="button" data-copy="npx actwhy" aria-label="Copy npx actwhy">copy</button>
+          </div>
+          <div class="install-cell">
+            <span><span class="prompt" aria-hidden="true">$ </span><code>npm i -g actwhy</code></span>
+            <button class="copybtn" type="button" data-copy="npm i -g actwhy" aria-label="Copy npm i -g actwhy">copy</button>
+          </div>
+        </div>
+        <p style="margin:16px 0 0;color:var(--ink-dim);font-size:13px;">Point it at a repo and it reads <code>.github/workflows</code> directly, or pipe YAML on stdin. Same engine as this page.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot__row">
+      <div class="foot__links">
+        <span>MIT License</span>
+        <a href="https://github.com/Co-Messi/actwhy" rel="noopener">GitHub</a>
+        <a href="https://www.npmjs.com/package/actwhy" rel="noopener">npm</a>
+        <a href="https://github.com/Co-Messi/actwhy/issues/new?labels=fidelity&amp;title=Fidelity%20bug%3A%20" rel="noopener">Report a fidelity bug</a>
+      </div>
+      <div class="foot__built">Built on <a href="https://github.com/actions/languageservices" rel="noopener">@actions/workflow-parser</a> + @actions/expressions.</div>
+    </div>
+  </footer>
+</body>
+</html>

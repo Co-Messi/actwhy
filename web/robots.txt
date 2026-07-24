@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://actwhy.vercel.app/sitemap.xml
