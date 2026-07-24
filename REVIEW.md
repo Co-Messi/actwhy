@@ -56,3 +56,22 @@ was fixed, and what remains — honestly.
 
 Fidelity disputes are P1 bugs — file a
 [fidelity report](.github/ISSUE_TEMPLATE/fidelity_report.yml).
+
+## Second-pass adversarial review (post-launch, 2026-07-24)
+
+A fresh CTO-level adversarial review (`.roast/REPORT-latest.md`) went deeper on
+the untrusted-input boundary and found two real defects the first pass missed,
+plus several improvements. All were fixed and covered by regression tests.
+
+| Severity | Finding | Fix |
+|---|---|---|
+| **Critical** | The earlier ReDoS fix only special-cased star atoms; `branches: ['a++']` still compiled to a nested-quantifier `RegExp` and hung the process for minutes on a ~30-char value (uncatchable — a hang, not a throw). | Replaced the RegExp compiler with a **linear-time Thompson-NFA matcher**. Backtracking is impossible by construction; the reviewer's 120 s hang is now ~2 ms. |
+| **High** | Attacker-controlled workflow text (filter patterns, branch names, commit messages, parser errors) was written to the terminal verbatim — a crafted workflow could inject ANSI escapes to forge a green `FIRES` line. | `render.ts` now strips all C0/C1 control chars and `ESC` from every attacker-derived string before output. Verified: zero `0x1b` bytes reach stdout for a malicious workflow. |
+| Medium | A static matrix of 257–4096 legs was reported as firing; GitHub caps matrices at 256 jobs (and fails the run). | Emit a `matrix-over-limit` warning at >256. |
+| Medium | `paths` + `paths-ignore` on one event silently dropped `paths-ignore`. | Follow GitHub (use `paths`) and warn (`paths-and-paths-ignore`). |
+| Medium | The CLI always exited `0`, so it couldn't gate CI. | Added `--exit-code` (3 = invalid workflow, 4 = nothing fires). |
+| Low | `--event` JSON was unvalidated/unbounded; `__proto__` keys merged; Node < 20 crashed cryptically; git base ref could be a flag; `workflowName()` was a dead stub; CI actions pinned by tag. | Validated/size-capped `--event` + forbidden-key filter; clear Node-version guard; `--end-of-options` on git diffs; wired `name:`; SHA-pinned CI actions. |
+
+After these fixes: `npx tsc --noEmit` clean, full suite green (including new
+`test/redos.test.ts`, `test/render-injection.test.ts`, `test/roast-fixes.test.ts`),
+build + web build succeed.

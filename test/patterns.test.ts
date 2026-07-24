@@ -8,7 +8,7 @@ import {
 
 /** Compile a GitHub filter pattern and test a value against it. */
 const matches = (pattern: string, value: string): boolean =>
-  compilePattern(pattern).regex.test(value);
+  compilePattern(pattern).test(value);
 
 describe("compilePattern — `*` (zero+ chars, but not `/`)", () => {
   it("`feature/*` matches one segment but not a nested one", () => {

@@ -15,7 +15,7 @@ declare const ACTWHY_VERSION: string;
 const VERSION = typeof ACTWHY_VERSION === "undefined" ? "dev" : ACTWHY_VERSION;
 
 import { parseArgs } from "node:util";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import pc from "picocolors";
 import { evaluateWorkflows } from "../core/index.js";
@@ -34,6 +34,7 @@ const SHARED: OptConfig = {
   event: { type: "string" },
   json: { type: "boolean" },
   steps: { type: "boolean" },
+  "exit-code": { type: "boolean" },
   "no-color": { type: "boolean" },
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "V" },
@@ -172,17 +173,33 @@ async function run(): Promise<number> {
   let payload: Record<string, unknown> | undefined;
   const eventPath = getStr("event");
   if (eventPath !== undefined) {
-    let raw: string;
+    const resolved = resolve(eventPath);
+    // A GitHub event payload is at most a few hundred KB; cap the read so a
+    // stray huge/binary path can't OOM the process.
+    const MAX_EVENT_BYTES = 10 * 1024 * 1024;
     try {
-      raw = readFileSync(resolve(eventPath), "utf8");
+      if (statSync(resolved).size > MAX_EVENT_BYTES) {
+        return usage(`event file "${eventPath}" is too large (max 10 MB)`);
+      }
     } catch {
       return usage(`could not read event file "${eventPath}"`);
     }
+    let raw: string;
     try {
-      payload = JSON.parse(raw) as Record<string, unknown>;
+      raw = readFileSync(resolved, "utf8");
+    } catch {
+      return usage(`could not read event file "${eventPath}"`);
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
     } catch (e) {
       return usage(`invalid JSON in event file "${eventPath}": ${(e as Error).message}`);
     }
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return usage(`event file "${eventPath}" must contain a JSON object`);
+    }
+    payload = parsed as Record<string, unknown>;
   }
 
   const repository = git.repoSlug(root) ?? undefined;
@@ -281,9 +298,18 @@ async function run(): Promise<number> {
 
   const report = await evaluateWorkflows(files, spec, { steps: getBool("steps") });
 
+  // Opt-in CI gate: exit 3 when a workflow failed to parse, exit 4 when
+  // nothing fires. Default stays 0 so casual runs never look "failed".
+  const gate = (): number => {
+    if (!getBool("exit-code")) return 0;
+    if (report.summary.workflowsError > 0) return 3;
+    if (report.nothingFires) return 4;
+    return 0;
+  };
+
   if (getBool("json")) {
     process.stdout.write(JSON.stringify(report, null, 2) + "\n");
-    return 0;
+    return gate();
   }
 
   const out = renderReport(report, {
@@ -293,7 +319,7 @@ async function run(): Promise<number> {
     notes,
   });
   process.stdout.write(out + "\n");
-  return 0;
+  return gate();
 }
 
 /**
@@ -329,6 +355,7 @@ COMMON OPTIONS
       --event <file.json>  merge a JSON event payload into the simulation
       --json               print the full report as JSON (no colors)
       --steps              also evaluate step-level \`if:\` conditions
+      --exit-code          exit 3 if any workflow is invalid, 4 if nothing fires
       --no-color           disable ANSI colors
   -h, --help               show this help and exit
   -V, --version            print the version and exit
@@ -355,6 +382,16 @@ EXAMPLES
 
 Docs: https://actwhy.vercel.app
 `;
+}
+
+// actwhy uses `util.parseArgs({ tokens })` and other Node ≥20 APIs. Give a
+// clear message instead of a cryptic runtime crash on older runtimes.
+const major = Number(process.versions.node.split(".")[0]);
+if (Number.isFinite(major) && major < 20) {
+  process.stderr.write(
+    pc.red(`actwhy requires Node.js ≥ 20 (you have ${process.versions.node}).`) + "\n",
+  );
+  process.exit(1);
 }
 
 run()

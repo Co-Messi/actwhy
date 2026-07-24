@@ -193,6 +193,17 @@ function checkPathFilters(
     });
   }
 
+  // GitHub documents `paths` and `paths-ignore` as mutually exclusive. If a
+  // workflow sets both, GitHub uses `paths` and ignores `paths-ignore`; warn
+  // so the author knows half their intent is being dropped (by GitHub, not us).
+  if (paths !== undefined && pathsIgnore !== undefined) {
+    warnings.push({
+      code: "paths-and-paths-ignore",
+      message:
+        "both paths and paths-ignore are set — GitHub uses paths and ignores paths-ignore",
+    });
+  }
+
   if (paths !== undefined) {
     if (matchPatternList(paths, "").startsNegative) {
       warnings.push({

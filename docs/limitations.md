@@ -61,13 +61,23 @@ Step-level `env:` is not evaluated. Conditions that read a variable set by an ea
 
 Static matrices are expanded and counted. A matrix built from `fromJSON(...)` or another dynamic source is not enumerated.
 
-**What actwhy says instead of guessing:** the job's matrix count is reported as `unknown` with a note, rather than a fabricated variant count.
+**What actwhy says instead of guessing:** the job's matrix count is reported as `unknown` with a note, rather than a fabricated variant count. If a static matrix would produce **more than 256 jobs** — GitHub's hard cap, which fails the run — actwhy emits a `matrix-over-limit` warning instead of quietly reporting the job as firing.
 
 ## Concurrency
 
 `concurrency:` groups and cancel-in-progress behavior are not modeled. actwhy answers *"would this workflow be triggered?"*, not *"would a previous run cancel it?"*.
 
 **What actwhy says instead of guessing:** concurrency is simply not part of the verdict. A workflow that would be triggered is reported as `FIRES` regardless of whether a concurrency rule might later cancel it.
+
+### `paths` and `paths-ignore` together
+
+GitHub documents `paths` and `paths-ignore` as mutually exclusive on the same event; when both are present it applies `paths` and ignores `paths-ignore`.
+
+**What actwhy says instead of guessing:** it follows GitHub (evaluates `paths`, drops `paths-ignore`) and emits a `paths-and-paths-ignore` warning so you know half the author's intent is being discarded.
+
+## Exit codes
+
+By default actwhy always exits `0` — a skipped or nothing-fires result is information, not a failure. Pass `--exit-code` to use it as a CI gate: it then exits `3` if any workflow is invalid and `4` if nothing fires. Usage errors (`2`) and a missing workflows directory (`1`) are always non-zero.
 
 ## Paths filters on large pushes
 

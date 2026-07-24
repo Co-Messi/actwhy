@@ -134,10 +134,13 @@ export interface PrChangedFiles {
  * `files: null` with a note so paths filters honestly report UNKNOWN.
  */
 export function changedFilesForPr(base: string, dir: string): PrChangedFiles {
-  const direct = git(["diff", "--name-only", `${base}...HEAD`], dir);
+  // `--end-of-options` stops git from parsing a user-supplied base that
+  // starts with `-` (e.g. `--output=…`) as a flag. execFileSync already
+  // prevents shell injection; this closes git-argument injection too.
+  const direct = git(["diff", "--name-only", "--end-of-options", `${base}...HEAD`], dir);
   if (direct !== null) return { files: uniqLines(direct), source: `vs base ${base} (merge-base)` };
 
-  const remote = git(["diff", "--name-only", `origin/${base}...HEAD`], dir);
+  const remote = git(["diff", "--name-only", "--end-of-options", `origin/${base}...HEAD`], dir);
   if (remote !== null) {
     return { files: uniqLines(remote), source: `vs base origin/${base} (merge-base)` };
   }

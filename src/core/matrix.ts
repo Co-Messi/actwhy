@@ -17,7 +17,12 @@ import {
 export interface MatrixResult {
   count: number | "unknown";
   note?: string;
+  /** Set when the static variant count exceeds GitHub's hard 256-job cap. */
+  overLimit?: boolean;
 }
+
+/** GitHub rejects any matrix that would generate more than 256 jobs. */
+const GITHUB_MATRIX_LIMIT = 256;
 
 type Combo = Record<string, string>;
 
@@ -126,8 +131,14 @@ export function expandMatrix(strategy: TemplateToken | undefined): MatrixResult 
       for (const v of values) next.push({ ...combo, [key]: v });
     }
     combos = next;
-    if (combos.length > 4096) {
-      return { count: "unknown", note: "matrix is larger than GitHub's 256-variant limit" };
+    // Hard stop well past GitHub's cap to bound work on a pathological matrix;
+    // anything this large is already over-limit (flagged below).
+    if (combos.length > 100_000) {
+      return {
+        count: "unknown",
+        overLimit: true,
+        note: `matrix exceeds GitHub's ${GITHUB_MATRIX_LIMIT}-job limit`,
+      };
     }
   }
 
@@ -146,6 +157,13 @@ export function expandMatrix(strategy: TemplateToken | undefined): MatrixResult 
   }
 
   const count = combos.length + added;
+  if (count > GITHUB_MATRIX_LIMIT) {
+    return {
+      count,
+      overLimit: true,
+      note: `exceeds GitHub's ${GITHUB_MATRIX_LIMIT}-job limit — GitHub would fail this workflow`,
+    };
+  }
   const note =
     excludes.length > 0 || includes.length > 0
       ? `after ${excludes.length ? `exclude` : ""}${excludes.length && includes.length ? " + " : ""}${includes.length ? `include` : ""}`

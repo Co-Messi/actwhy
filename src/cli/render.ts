@@ -37,7 +37,79 @@ const ICON: Record<VerdictKind, string> = {
   error: "✖",
 };
 
-export function renderReport(report: Report, opts: RenderOptions): string {
+/**
+ * Strip terminal control characters from untrusted text. Workflow files come
+ * from repos the user did not write: a filter pattern or branch name carrying
+ * `\x1b[...]` could repaint a SKIPPED line as a green FIRES — the one output
+ * this tool must make unforgeable. Keeps `\n` and `\t`; drops the rest of
+ * C0, DEL, and the C1 range.
+ */
+function clean(s: string): string {
+  // eslint-disable-next-line no-control-regex
+  return s.replace(/[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/g, "");
+}
+
+function cleanReason(r: Reason): Reason {
+  return {
+    code: r.code,
+    message: clean(r.message),
+    detail: r.detail === undefined ? undefined : clean(r.detail),
+  };
+}
+
+/** Deep-copy a report with every untrusted string sanitized. */
+function sanitizeReport(report: Report): Report {
+  return {
+    ...report,
+    workflows: report.workflows.map((w) => ({
+      ...w,
+      file: clean(w.file),
+      name: w.name === undefined ? undefined : clean(w.name),
+      reasons: w.reasons.map(cleanReason),
+      warnings: w.warnings.map(cleanReason),
+      jobs: w.jobs.map((j) => ({
+        ...j,
+        id: clean(j.id),
+        name: j.name === undefined ? undefined : clean(j.name),
+        matrixNote: j.matrixNote === undefined ? undefined : clean(j.matrixNote),
+        reasons: j.reasons.map(cleanReason),
+        steps: j.steps?.map((s) => ({
+          ...s,
+          name: clean(s.name),
+          reasons: s.reasons.map(cleanReason),
+        })),
+      })),
+    })),
+    closestMiss: report.closestMiss && {
+      file: clean(report.closestMiss.file),
+      reason: cleanReason(report.closestMiss.reason),
+    },
+    event:
+      report.event.kind === "push"
+        ? {
+            ...report.event,
+            branch: report.event.branch === undefined ? undefined : clean(report.event.branch),
+            tag: report.event.tag === undefined ? undefined : clean(report.event.tag),
+          }
+        : {
+            ...report.event,
+            base: clean(report.event.base),
+            head: report.event.head === undefined ? undefined : clean(report.event.head),
+          },
+  };
+}
+
+export function renderReport(rawReport: Report, opts: RenderOptions): string {
+  const report = sanitizeReport(rawReport);
+  const cleanOpts: RenderOptions = {
+    ...opts,
+    filesSource: opts.filesSource === undefined ? undefined : clean(opts.filesSource),
+    notes: opts.notes?.map(clean),
+  };
+  return renderReportInner(report, cleanOpts);
+}
+
+function renderReportInner(report: Report, opts: RenderOptions): string {
   const c = pc.createColors(opts.color);
   const lines: string[] = [];
 

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Filter-pattern matching is now linear-time** (a Thompson NFA, not a backtracking `RegExp`). A hostile pattern such as `branches: ['a++']` in a cloned repo could previously hang the CLI or a playground tab indefinitely (catastrophic backtracking); worst case is now microseconds regardless of input.
+- **Terminal output is sanitized** — control characters and ANSI escapes in attacker-controlled workflow text (filter patterns, branch names, commit messages, parse errors) are stripped before rendering, so a malicious workflow can no longer forge a `FIRES` verdict line in your terminal.
+
+### Added
+
+- **`--exit-code`** flag: exit `3` if any workflow is invalid, `4` if nothing fires — for using actwhy as a CI gate. Default behavior is unchanged (always exit `0`).
+- Workflow `name:` is now read and exposed on each verdict (`--json`).
+
+### Changed
+
+- A static matrix exceeding GitHub's 256-job cap now emits a `matrix-over-limit` warning instead of reporting the job as firing.
+- A workflow with both `paths` and `paths-ignore` on one event now warns (`paths-and-paths-ignore`) and follows GitHub (uses `paths`).
+- `--event` payloads are validated (must be a JSON object, size-capped) and `__proto__`/`constructor` keys are ignored.
+- The CLI errors clearly on Node < 20; CI actions are pinned by commit SHA.
+
 - See the [roadmap](README.md#roadmap) for planned work: `schedule` evaluation, `workflow_call` graph expansion, `--diff ref..ref`, and CI annotation mode.
 
 ## [0.1.0] - 2026-07-24

@@ -49,7 +49,6 @@ export interface RootContext {
 const EVENT_HINT = "supply it with --event payload.json";
 
 function pushPayload(spec: PushSpec): PartialDict {
-  const refName = spec.tag ?? spec.branch ?? "";
   const ref = spec.tag ? `refs/tags/${spec.tag}` : `refs/heads/${spec.branch}`;
   const entries: Record<string, CtxValue> = {
     ref,
@@ -72,7 +71,6 @@ function pushPayload(spec: PushSpec): PartialDict {
     pusher: new Unk("pusher details are runtime-only", EVENT_HINT),
     sender: new Unk("sender details are runtime-only", EVENT_HINT),
   };
-  void refName;
   return new PartialDict(entries, "push payload fields are runtime-only", EVENT_HINT);
 }
 
@@ -126,10 +124,14 @@ function prPayload(spec: PrSpec): PartialDict {
   return new PartialDict(entries, "pull_request payload fields are runtime-only", EVENT_HINT);
 }
 
+/** Keys that must never be copied from user JSON into a context object. */
+const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
 /** Deep-merge a user-supplied JSON payload over the inferred payload. */
 function mergePayload(base: PartialDict, user: Record<string, unknown>): PartialDict {
   const entries = { ...base.entries };
   for (const [k, v] of Object.entries(user)) {
+    if (FORBIDDEN_KEYS.has(k)) continue;
     const existing = entries[k];
     if (
       existing instanceof PartialDict &&

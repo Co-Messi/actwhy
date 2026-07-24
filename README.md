@@ -110,6 +110,7 @@ Simulate a push. With no flags it infers the current branch and the outgoing cha
 | `--event <file>` | Supply an event payload JSON *file* to resolve values actwhy cannot infer offline. |
 | `--json` | Emit the full report as JSON for scripting. |
 | `--steps` | Include step-level `if:` evaluation in the output. |
+| `--exit-code` | Exit non-zero for CI gating: `3` if any workflow is invalid, `4` if nothing fires (default: always exit `0`). |
 | `-C, --repo <path>` | Path to the repository. Default: the current directory. |
 | `--no-color` | Disable ANSI color. |
 

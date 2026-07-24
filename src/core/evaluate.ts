@@ -6,9 +6,12 @@
 import {
   NoOperationTraceWriter,
   convertWorkflowTemplate,
+  isMapping,
+  isString,
   parseWorkflow,
 } from "@actions/workflow-parser";
 import type { WorkflowTemplate } from "@actions/workflow-parser";
+import type { TemplateToken } from "@actions/workflow-parser/templates/tokens/template-token";
 import { buildRootContext, Unk, type CtxValue, type RootContext } from "./context.js";
 import { evaluateIf, type EvalOutcome, type StatusAssumptions, type Truthiness } from "./expr.js";
 import { evaluateTrigger } from "./filters.js";
@@ -112,6 +115,7 @@ async function evaluateOne(
   options: EvaluateOptions,
 ): Promise<WorkflowVerdict> {
   let template: WorkflowTemplate;
+  let workflowNameFromRoot: string | undefined;
   try {
     const parsed = parseWorkflow(
       { name: file.name, content: file.content },
@@ -130,6 +134,7 @@ async function evaluateOne(
         warnings: [],
       };
     }
+    workflowNameFromRoot = readWorkflowName(parsed.value);
     template = await convertWorkflowTemplate(parsed.context, parsed.value);
     if (template.errors && template.errors.length > 0) {
       return {
@@ -158,7 +163,7 @@ async function evaluateOne(
     };
   }
 
-  const name = workflowName(template);
+  const name = workflowNameFromRoot;
   let trigger: ReturnType<typeof evaluateTrigger>;
   try {
     trigger = evaluateTrigger(template.events, spec);
@@ -197,9 +202,15 @@ async function evaluateOne(
   return { file: file.name, name, verdict: "fires", reasons: [], jobs, warnings };
 }
 
-function workflowName(template: WorkflowTemplate): string | undefined {
-  // WorkflowTemplate has no first-class name field in this version; the
-  // file name is the stable identifier we present.
+/** Read the top-level `name:` scalar from the parsed workflow root. */
+function readWorkflowName(root: TemplateToken | undefined): string | undefined {
+  if (root === undefined || !isMapping(root)) return undefined;
+  for (const pair of root) {
+    if (isString(pair.key) && pair.key.value === "name" && isString(pair.value)) {
+      const v = pair.value.value.trim();
+      return v.length > 0 ? v : undefined;
+    }
+  }
   return undefined;
 }
 
@@ -287,6 +298,12 @@ function evaluateJob(
   if (matrix) {
     base.matrix = matrix.count;
     base.matrixNote = matrix.note;
+    if (matrix.overLimit) {
+      warnings.push({
+        code: "matrix-over-limit",
+        message: `job "${job.id.value}": ${matrix.note}`,
+      });
+    }
   }
 
   if (job.type === "reusableWorkflowJob") {
