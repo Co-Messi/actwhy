@@ -14,7 +14,7 @@ was fixed, and what remains — honestly.
 |---|---|---|
 | 1 | A single malformed filter pattern (e.g. `paths: ['src/[']`) threw out of the evaluator and crashed the entire run — every other workflow lost its verdict | Pattern-compilation failures now degrade to a per-workflow `invalid workflow` verdict quoting the error; the rest of the run is unaffected |
 | 2 | The playground's install section claimed the CLI could read "YAML on stdin" — no stdin handling exists | Claim removed (stdin support is tracked as a starter issue) |
-| 3 | The most common stranger flow — running `actwhy` on a branch in sync with its upstream — produced a false "NOTHING fires" from an empty changed-file set | In-sync branches now simulate the last commit's push, with an explicit header label saying so |
+| 3 | The most common stranger flow — running `actwhy` on a branch in sync with its upstream — was ambiguous | In-sync branches now report a truthful empty outgoing set with an explicit header label; already-pushed files are never substituted |
 | 4 | Site footer and JSON-LD pointed at an npm package page that 404s pre-publish | Repointed to the GitHub repository until the npm release is live |
 | 5 | The social-preview image had overlapping, unreadable text (font-metric assumptions) | Layout rebuilt with fixed columns and end-anchored badges; re-rendered and visually verified |
 | 6 | A launch-copy draft overstated provenance ("filter semantics are GitHub's code" — the filter-pattern engine is actwhy's own implementation of GitHub's documented grammar) | Corrected; the precise split (GitHub's libraries for parsing/expressions, actwhy's verified engine for filter patterns) is stated everywhere |
@@ -50,8 +50,8 @@ was fixed, and what remains — honestly.
   stay `UNKNOWN` by design.
 - Step-level `env:` is not evaluated; matrix-dependent step conditions
   report `UNKNOWN`.
-- GitHub skips paths filters on pushes touching >1000 files; actwhy does not
-  model that edge (documented).
+- GitHub's >1,000-commit/diff-timeout fallback and 300-file path-filter window
+  are not modeled (documented).
 - The web playground share-link format has no versioning guarantee yet.
 
 Fidelity disputes are P1 bugs — file a
@@ -67,8 +67,8 @@ plus several improvements. All were fixed and covered by regression tests.
 |---|---|---|
 | **Critical** | The earlier ReDoS fix only special-cased star atoms; `branches: ['a++']` still compiled to a nested-quantifier `RegExp` and hung the process for minutes on a ~30-char value (uncatchable — a hang, not a throw). | Replaced the RegExp compiler with a **linear-time Thompson-NFA matcher**. Backtracking is impossible by construction; the reviewer's 120 s hang is now ~2 ms. |
 | **High** | Attacker-controlled workflow text (filter patterns, branch names, commit messages, parser errors) was written to the terminal verbatim — a crafted workflow could inject ANSI escapes to forge a green `FIRES` line. | `render.ts` now strips all C0/C1 control chars and `ESC` from every attacker-derived string before output. Verified: zero `0x1b` bytes reach stdout for a malicious workflow. |
-| Medium | A static matrix of 257–4096 legs was reported as firing; GitHub caps matrices at 256 jobs (and fails the run). | Emit a `matrix-over-limit` warning at >256. |
-| Medium | `paths` + `paths-ignore` on one event silently dropped `paths-ignore`. | Follow GitHub (use `paths`) and warn (`paths-and-paths-ignore`). |
+| Medium | A static matrix of 257–4096 legs was reported as firing; GitHub caps matrices at 256 jobs (and fails the run). | Report the job as a `matrix-over-limit` error and count zero firing variants. |
+| Medium | `paths` + `paths-ignore` on one event silently dropped `paths-ignore`. | Report mutually exclusive include/ignore pairs as invalid instead of inventing precedence. |
 | Medium | The CLI always exited `0`, so it couldn't gate CI. | Added `--exit-code` (3 = invalid workflow, 4 = nothing fires). |
 | Low | `--event` JSON was unvalidated/unbounded; `__proto__` keys merged; Node < 20 crashed cryptically; git base ref could be a flag; `workflowName()` was a dead stub; CI actions pinned by tag. | Validated/size-capped `--event` + forbidden-key filter; clear Node-version guard; `--end-of-options` on git diffs; wired `name:`; SHA-pinned CI actions. |
 

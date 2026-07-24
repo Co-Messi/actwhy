@@ -1,4 +1,4 @@
-# Limitations (v0.1)
+# Limitations (v0.1.x)
 
 actwhy's value comes from being *honest*: where it cannot decide something offline, it says so rather than guessing. This page lists the boundaries of the v0.1 release and, for each, exactly what actwhy reports instead of inventing an answer.
 
@@ -61,7 +61,7 @@ Step-level `env:` is not evaluated. Conditions that read a variable set by an ea
 
 Static matrices are expanded and counted. A matrix built from `fromJSON(...)` or another dynamic source is not enumerated.
 
-**What actwhy says instead of guessing:** the job's matrix count is reported as `unknown` with a note, rather than a fabricated variant count. If a static matrix would produce **more than 256 jobs** — GitHub's hard cap, which fails the run — actwhy emits a `matrix-over-limit` warning instead of quietly reporting the job as firing.
+**What actwhy says instead of guessing:** the job's matrix count is reported as `unknown` with a note, rather than a fabricated variant count. If a static matrix would produce **more than 256 jobs** — GitHub's hard cap — actwhy reports that job as an `ERROR` with `matrix-over-limit` and does not count any of its variants as firing.
 
 ## Concurrency
 
@@ -69,21 +69,29 @@ Static matrices are expanded and counted. A matrix built from `fromJSON(...)` or
 
 **What actwhy says instead of guessing:** concurrency is simply not part of the verdict. A workflow that would be triggered is reported as `FIRES` regardless of whether a concurrency rule might later cancel it.
 
-### `paths` and `paths-ignore` together
+### Mutually exclusive include/ignore filters
 
-GitHub documents `paths` and `paths-ignore` as mutually exclusive on the same event; when both are present it applies `paths` and ignores `paths-ignore`.
+GitHub does not allow `paths` with `paths-ignore`, `branches` with `branches-ignore`, or `tags` with `tags-ignore` on the same event.
 
-**What actwhy says instead of guessing:** it follows GitHub (evaluates `paths`, drops `paths-ignore`) and emits a `paths-and-paths-ignore` warning so you know half the author's intent is being discarded.
+**What actwhy says instead of guessing:** the workflow is reported as an `ERROR` with `invalid-filter-combination`. actwhy does not invent precedence for an invalid trigger.
+
+### Commit-message skip directives
+
+GitHub suppresses `push` and `pull_request` workflows for the documented bracketed directives (`[skip ci]`, `[ci skip]`, `[no ci]`, `[skip actions]`, and `[actions skip]`) and a final `skip-checks: true` trailer. These directives do not apply to `pull_request_target`.
+
+actwhy evaluates these directives when the commit message is supplied or inferred from `HEAD`.
 
 ## Exit codes
 
 By default actwhy always exits `0` — a skipped or nothing-fires result is information, not a failure. Pass `--exit-code` to use it as a CI gate: it then exits `3` if any workflow is invalid and `4` if nothing fires. Usage errors (`2`) and a missing workflows directory (`1`) are always non-zero.
 
-## Paths filters on large pushes
+## Paths filters on large diffs
 
-GitHub stops applying `paths` / `paths-ignore` filters on a push that changes **more than 1,000 files**, running the workflow regardless. actwhy does not model this edge case; it applies paths filters to whatever changed-file list it is given.
+GitHub always runs a workflow when it cannot generate the diff because the push contains **more than 1,000 commits** or diff generation times out. Separately, GitHub evaluates path filters against only the first **300 changed files** returned by the diff.
 
-**What actwhy says instead of guessing:** for pushes near or above that threshold, treat a `paths`-based `SKIPPED` with suspicion — GitHub may run the workflow anyway. This is a known modeling gap, noted here rather than silently mis-reported.
+actwhy does not know whether GitHub's diff timed out and does not truncate an explicitly supplied file list to 300 entries.
+
+**What actwhy says instead of guessing:** actwhy evaluates the complete changed-file list it receives. For pushes above 1,000 commits, timed-out diffs, or cases where a relevant path may fall beyond GitHub's 300-file window, compare the verdict with these documented GitHub limits.
 
 ## Fidelity
 

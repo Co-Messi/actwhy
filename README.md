@@ -8,7 +8,7 @@
 
 `act` executes your workflows (heavy, needs Docker, breaks on runner mismatches). `actionlint` lints their syntax. GitHub's own UI only explains what fired *after* you push. **actwhy** answers a different question — *for this exact push or PR, which workflows fire, which are skipped and by which filter, and which can't be decided offline* — statically, instantly, and with zero network calls.
 
-It never guesses. Every workflow gets one of three verdicts: **FIRES**, **SKIPPED** (with the failing filter quoted in plain English), or **UNKNOWN** (naming the exact runtime-only value it would need, such as `secrets.*` or `needs.*.outputs.*`, and how to supply it).
+It never guesses. Every workflow gets one of four verdicts: **FIRES**, **SKIPPED** (with the failing filter quoted in plain English), **UNKNOWN** (naming the exact runtime-only value it would need, such as `secrets.*` or `needs.*.outputs.*`, and how to supply it), or **ERROR** for a configuration GitHub would reject.
 
 ![actwhy demo](docs/assets/demo.png)
 
@@ -37,10 +37,6 @@ Or install it:
 npm install -g actwhy
 actwhy --help
 ```
-
-> **Not on npm yet?** actwhy publishes to npm immediately after launch. Until then, install
-> from source: `git clone https://github.com/Co-Messi/actwhy && cd actwhy && npm install && npm run build`,
-> then run `node dist/actwhy.js` (or `npm link` to expose the `actwhy` command).
 
 Requires **Node.js ≥ 20**.
 
@@ -73,7 +69,8 @@ And the case above, where the closest miss is surfaced so you know which filter 
 - **It never guesses.** A value it cannot know offline (a secret, a needed job's output) becomes an honest `UNKNOWN` naming that value — not a fabricated pass or fail.
 - **It quotes the exact filter that decided the outcome.** Not "skipped" — *"branches filter `["main"]` does not match `feat/login`"*.
 - **It uses GitHub's own parsing and expression semantics.** Workflow parsing and expression coercion run on GitHub's MIT-licensed [`@actions/workflow-parser`](https://github.com/actions/languageservices) and [`@actions/expressions`](https://github.com/actions/languageservices) — the libraries behind the official Actions language services, not a reimplementation.
-- **It gets filter patterns right.** GitHub's `?` and `+` are regex-style quantifiers on the *preceding character*, not glob wildcards — a distinction most third-party matchers get wrong. actwhy implements GitHub's exact semantics, including `!` negation ordering.
+- **It gets filter patterns right.** GitHub's `?` and `+` are regex-style quantifiers on the *preceding character*, not glob wildcards — a distinction most third-party matchers get wrong. actwhy implements GitHub's semantics, including `!` negation ordering and slash-delimited globstars such as `docs/**/*.md` matching files directly under `docs/`.
+- **It models GitHub's quiet skip rules.** Tag pushes ignore path filters, empty diffs do not start path-filtered workflows, and commit messages containing `[skip ci]`-style directives suppress `push` and `pull_request` runs.
 - **It catches the classic always-true footgun.** `if: ${{ github.ref }} == 'refs/heads/main'` renders to a non-empty string and is *always* truthy — actwhy warns instead of letting it silently pass.
 - **It runs fully local.** Zero network calls, zero telemetry. It reads your workflow files and git metadata, nothing else.
 
@@ -99,7 +96,7 @@ actwhy has two subcommands. `push` is the default when you run `actwhy` with no 
 
 ### `actwhy push`
 
-Simulate a push. With no flags it infers the current branch and the outgoing changed files from git (your branch vs its upstream).
+Simulate a push. With no flags it infers the current branch and the outgoing changed files from git (your branch vs its upstream). If the branch is already in sync, actwhy reports an explicit empty outgoing set; it never substitutes an already-pushed commit.
 
 | Flag | Description |
 |---|---|
@@ -134,9 +131,10 @@ Simulate a pull request against a base branch.
 
 ## How it works
 
-- **Three-valued verdicts.** Each workflow and job resolves to `FIRES`, `SKIPPED`, or `UNKNOWN`. `SKIPPED` always carries the exact failing filter or subexpression; `UNKNOWN` always names the runtime-only value it lacks and how to supply it (`--event payload.json`). actwhy never fabricates a pass or fail.
+- **Honest verdicts.** Each workflow and job resolves to `FIRES`, `SKIPPED`, `UNKNOWN`, or `ERROR`. `SKIPPED` carries the exact failing filter or subexpression; `UNKNOWN` names the runtime-only value it lacks and how to supply it (`--event payload.json`); `ERROR` identifies invalid configuration such as mutually exclusive include/ignore filters or a matrix above 256 jobs.
 - **GitHub's own libraries.** Parsing and expression coercion run on GitHub's MIT-licensed `@actions/workflow-parser` and `@actions/expressions`, so the grammar, type coercion, and function semantics match what GitHub actually does — this is GitHub's code, not a reimplementation.
-- **An exact filter-pattern engine.** `*` and `**`, character classes `[…]`, `!` negation (order-sensitive), and — critically — the regex-style quantifiers `?` (zero or one of the *preceding* character) and `+` (one or more of the *preceding* character), which standard glob libraries misinterpret as wildcards.
+- **An exact filter-pattern engine.** `*` and `**` (including zero-directory slash-delimited globstars), character classes `[…]`, `!` negation (order-sensitive), and — critically — the regex-style quantifiers `?` (zero or one of the *preceding* character) and `+` (one or more of the *preceding* character), which standard glob libraries misinterpret as wildcards.
+- **GitHub object filters.** Expressions such as `github.event.pull_request.labels.*.name` are projected and evaluated when the payload values are known.
 - **Kleene (three-valued) logic.** Unknowns propagate only when they change the outcome. `<unknown> && false` is still a decisive `SKIPPED`; `<unknown> || true` is still `FIRES`. A verdict becomes `UNKNOWN` only when the unknown genuinely decides it.
 
 For the precise boundaries of v0.1 — which events are evaluated versus classified, and what actwhy reports instead of guessing — see **[docs/limitations.md](docs/limitations.md)**.
