@@ -192,6 +192,57 @@ jobs:
     const w = wf(await evaluateWorkflows(files, spec), "pi.yml");
     expect(w.verdict).toBe("fires");
   });
+
+  it("skips a path-filtered workflow when the known changed-file set is empty", async () => {
+    const spec: PushSpec = { kind: "push", branch: "main", files: [] };
+    const w = wf(await evaluateWorkflows(files, spec), "pi.yml");
+    expect(w.verdict).toBe("skipped");
+    expect(codes(w.reasons)).toContain("no-changed-files");
+  });
+});
+
+describe("push path-filter edge cases", () => {
+  it("ignores paths filters for tag pushes", async () => {
+    const files = [
+      file(
+        "tag.yml",
+        `
+on:
+  push:
+    tags: ['v*']
+    paths: ['src/**']
+jobs:
+  j: {runs-on: ubuntu-latest, steps: [{run: echo}]}
+`,
+      ),
+    ];
+    const spec: PushSpec = {
+      kind: "push",
+      tag: "v1.0.0",
+      files: ["docs/release.md"],
+    };
+    const w = wf(await evaluateWorkflows(files, spec), "tag.yml");
+    expect(w.verdict).toBe("fires");
+  });
+
+  it("skips a paths workflow when the known changed-file set is empty", async () => {
+    const files = [
+      file(
+        "paths.yml",
+        `
+on:
+  push:
+    paths: ['src/**']
+jobs:
+  j: {runs-on: ubuntu-latest, steps: [{run: echo}]}
+`,
+      ),
+    ];
+    const spec: PushSpec = { kind: "push", branch: "main", files: [] };
+    const w = wf(await evaluateWorkflows(files, spec), "paths.yml");
+    expect(w.verdict).toBe("skipped");
+    expect(codes(w.reasons)).toContain("no-changed-files");
+  });
 });
 
 // ── (c) workflow_dispatch only ───────────────────────────────────────────

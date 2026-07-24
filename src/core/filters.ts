@@ -83,6 +83,9 @@ export function evaluateTrigger(events: EventsConfig, spec: EventSpec): TriggerR
       : checkRefFilters("branch", refName, branches, branchesIgnore);
     if (refReason) return skip([refReason]);
 
+    // GitHub does not evaluate path filters for tag pushes.
+    if (isTag) return fires(warnings);
+
     const pathResult = checkPathFilters(paths, pathsIgnore, spec.files, warnings);
     if (pathResult) return pathResult;
 
@@ -186,11 +189,12 @@ function checkPathFilters(
   }
 
   if (files.length === 0) {
-    warnings.push({
-      code: "no-changed-files",
-      message:
-        "no changed files detected — paths filters evaluated against an empty set",
-    });
+    return skip([
+      {
+        code: "no-changed-files",
+        message: "no changed files — GitHub does not run path-filtered workflows for an empty diff",
+      },
+    ]);
   }
 
   // GitHub documents `paths` and `paths-ignore` as mutually exclusive. If a

@@ -37,6 +37,14 @@ describe("compilePattern — `**` (crosses `/`)", () => {
     expect(matches("**", "main")).toBe(true);
     expect(matches("**", "")).toBe(true);
   });
+
+  it("a slash-delimited globstar matches zero or more directories", () => {
+    expect(matches("docs/**/*.md", "docs/README.md")).toBe(true);
+    expect(matches("docs/**/*.md", "docs/guides/start.md")).toBe(true);
+    expect(matches("a/**/b", "a/b")).toBe(true);
+    expect(matches("a/**/b", "a/x/y/b")).toBe(true);
+    expect(matches("a/**/b", "a/xb")).toBe(false);
+  });
 });
 
 describe("compilePattern — `?` is ZERO OR ONE of the preceding char (regex-style)", () => {
