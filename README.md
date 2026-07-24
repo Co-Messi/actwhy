@@ -31,9 +31,6 @@ npx actwhy                       # infers branch + outgoing changed files from g
 npx actwhy pr --base main        # simulate the same changes as a pull request
 ```
 
-> **Not on npm yet?** Until the first npm release lands, install from source —
-> see [Installation](#30-second-quick-start) below.
-
 Or install it:
 
 ```bash
@@ -145,10 +142,10 @@ For the precise boundaries of v0.1 — which events are evaluated versus classif
 
 ## Verified against real GitHub
 
-Before release, we pushed 12 crafted workflows and 13 ref events (commits with
+Before release, we pushed 11 crafted workflows and 12 ref events (commits with
 disjoint changed-file sets, seven branches probing the pattern grammar, one tag)
 to a scratch GitHub repository and recorded which workflows GitHub actually ran.
-GitHub started **24 workflow runs across those 13 events — actwhy predicted
+GitHub started **24 workflow runs across those 12 events — actwhy predicted
 exactly those 24 and none of the ~130 other workflow×event combinations, and
 all 3 job-level `if:` decisions matched** — including the `?`/`+` quantifier semantics,
 `!` negation re-includes, `paths-ignore`'s all-files rule, tag-push versus

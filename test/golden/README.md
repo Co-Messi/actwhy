@@ -1,13 +1,13 @@
 # Golden live-fidelity data
 
-On 2026-07-24 we pushed 12 crafted workflows and 13 ref events (4 commits to
+On 2026-07-24 we pushed 11 crafted workflows and 12 ref events (4 commits to
 `main` with disjoint changed-file sets, 7 new branches, 1 tag) to a scratch
 GitHub repository and recorded which workflows GitHub actually ran
 (`live-runs-raw.json`, from the Actions REST API) and the per-job
 conclusions for the `if:` cases.
 
 Every actwhy prediction matched real GitHub behavior: GitHub started 24
-workflow runs across the 13 ref events, actwhy predicted exactly those 24
+workflow runs across the 12 ref events, actwhy predicted exactly those 24
 fired (and predicted "skip" for every other workflow×event combination that
 did not run), and all 3 job-level `if:` decisions matched — including the
 cases most tools get wrong:
