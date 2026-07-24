@@ -11,6 +11,7 @@ import type {
   VerdictKind,
   WorkflowVerdict,
 } from "../../src/core/types.js";
+import { resolutionActions } from "./actions.js";
 
 const GLYPH: Record<VerdictKind, string> = {
   fires: "✔",
@@ -154,6 +155,42 @@ function bannerNode(report: Report): HTMLElement | null {
   return banner;
 }
 
+function resolutionNode(report: Report): HTMLElement {
+  const section = el("section", {
+    class: "resolution",
+    "aria-label": "Try another scenario",
+  });
+  const copy = el("div", { class: "resolution__copy" });
+  copy.append(el("span", { class: "resolution__eyebrow" }, "Next test"));
+  copy.append(el("span", { class: "resolution__title" }, "Turn this verdict into an answer"));
+  section.append(copy);
+
+  const controls = el("div", { class: "resolution__actions" });
+  for (const action of resolutionActions(report)) {
+    const button = el(
+      "button",
+      {
+        class: "resolution__action",
+        type: "button",
+        title: action.detail,
+        "data-resolution-action": action.id,
+      },
+      action.label,
+    );
+    button.addEventListener("click", () => {
+      section.dispatchEvent(
+        new CustomEvent("actwhy:resolution", {
+          bubbles: true,
+          detail: { id: action.id, text: action.detail },
+        }),
+      );
+    });
+    controls.append(button);
+  }
+  section.append(controls);
+  return section;
+}
+
 /** Render the whole report into `mount`. */
 export function renderReport(report: Report, mount: HTMLElement): void {
   clear(mount);
@@ -195,6 +232,7 @@ export function renderReport(report: Report, mount: HTMLElement): void {
 
   const banner = bannerNode(report);
   if (banner) mount.append(banner);
+  mount.append(resolutionNode(report));
 
   // Announce a one-line summary instead of the whole rebuilt tree — a
   // full-subtree aria-live region re-reads everything on each keystroke.

@@ -24,6 +24,11 @@ const unknown = (reasons: Reason[], warnings: Reason[] = []): TriggerResult => (
   reasons,
   warnings,
 });
+const error = (reasons: Reason[]): TriggerResult => ({
+  verdict: "error",
+  reasons,
+  warnings: [],
+});
 
 const DEFAULT_PR_TYPES = ["opened", "synchronize", "reopened"];
 
@@ -55,6 +60,24 @@ export function evaluateTrigger(events: EventsConfig, spec: EventSpec): TriggerR
     const paths = push.paths;
     const pathsIgnore = push["paths-ignore"];
 
+    const invalidPair = mutuallyExclusiveFilterPair([
+      ["branches", branches, "branches-ignore", branchesIgnore],
+      ["tags", tags, "tags-ignore", tagsIgnore],
+      ["paths", paths, "paths-ignore", pathsIgnore],
+    ]);
+    if (invalidPair) return error([invalidPair]);
+    if (spec.hasOutgoingCommits === false) {
+      return skip([
+        {
+          code: "no-outgoing-commits",
+          message: "the current branch has no outgoing commits, so no push event will occur",
+        },
+      ]);
+    }
+    if (hasCommitSkipDirective(spec.commitMessage)) {
+      return skip([commitSkipReason()]);
+    }
+
     const hasBranchFilters = branches !== undefined || branchesIgnore !== undefined;
     const hasTagFilters = tags !== undefined || tagsIgnore !== undefined;
 
@@ -83,6 +106,9 @@ export function evaluateTrigger(events: EventsConfig, spec: EventSpec): TriggerR
       : checkRefFilters("branch", refName, branches, branchesIgnore);
     if (refReason) return skip([refReason]);
 
+    // GitHub does not evaluate path filters for tag pushes.
+    if (isTag) return fires(warnings);
+
     const pathResult = checkPathFilters(paths, pathsIgnore, spec.files, warnings);
     if (pathResult) return pathResult;
 
@@ -96,6 +122,14 @@ export function evaluateTrigger(events: EventsConfig, spec: EventSpec): TriggerR
     | undefined;
   if (pr === undefined) {
     return skip([noListenerReason(eventName, listeners)]);
+  }
+  const invalidPair = mutuallyExclusiveFilterPair([
+    ["branches", pr.branches, "branches-ignore", pr["branches-ignore"]],
+    ["paths", pr.paths, "paths-ignore", pr["paths-ignore"]],
+  ]);
+  if (invalidPair) return error([invalidPair]);
+  if (eventName === "pull_request" && hasCommitSkipDirective(spec.commitMessage)) {
+    return skip([commitSkipReason()]);
   }
 
   const types = pr.types ?? DEFAULT_PR_TYPES;
@@ -118,6 +152,43 @@ export function evaluateTrigger(events: EventsConfig, spec: EventSpec): TriggerR
   if (pathResult) return pathResult;
 
   return fires(warnings);
+}
+
+function mutuallyExclusiveFilterPair(
+  pairs: Array<
+    [
+      includeName: string,
+      include: readonly string[] | undefined,
+      ignoreName: string,
+      ignore: readonly string[] | undefined,
+    ]
+  >,
+): Reason | undefined {
+  for (const [includeName, include, ignoreName, ignore] of pairs) {
+    if (include !== undefined && ignore !== undefined) {
+      return {
+        code: "invalid-filter-combination",
+        message: `GitHub does not allow \`${includeName}\` and \`${ignoreName}\` on the same event`,
+      };
+    }
+  }
+  return undefined;
+}
+
+function hasCommitSkipDirective(message: string | undefined): boolean {
+  if (!message) return false;
+  const normalized = message.replace(/\r\n?/g, "\n");
+  if (/\[(?:skip ci|ci skip|no ci|skip actions|actions skip)\]/i.test(normalized)) {
+    return true;
+  }
+  return /(?:^|\n\n)skip-checks:\s*true\s*$/i.test(normalized);
+}
+
+function commitSkipReason(): Reason {
+  return {
+    code: "commit-message-skip",
+    message: "the commit message contains a GitHub Actions skip directive",
+  };
 }
 
 function noListenerReason(eventName: string, listeners: string[]): Reason {
@@ -186,22 +257,12 @@ function checkPathFilters(
   }
 
   if (files.length === 0) {
-    warnings.push({
-      code: "no-changed-files",
-      message:
-        "no changed files detected — paths filters evaluated against an empty set",
-    });
-  }
-
-  // GitHub documents `paths` and `paths-ignore` as mutually exclusive. If a
-  // workflow sets both, GitHub uses `paths` and ignores `paths-ignore`; warn
-  // so the author knows half their intent is being dropped (by GitHub, not us).
-  if (paths !== undefined && pathsIgnore !== undefined) {
-    warnings.push({
-      code: "paths-and-paths-ignore",
-      message:
-        "both paths and paths-ignore are set — GitHub uses paths and ignores paths-ignore",
-    });
+    return skip([
+      {
+        code: "no-changed-files",
+        message: "no changed files — GitHub does not run path-filtered workflows for an empty diff",
+      },
+    ]);
   }
 
   if (paths !== undefined) {

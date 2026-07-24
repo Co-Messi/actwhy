@@ -16,6 +16,11 @@ export interface PushSpec {
    * yield UNKNOWN verdicts instead of guessing.
    */
   files: string[] | null;
+  /**
+   * False only when zero-config git inference proves the current branch has
+   * no commits to push. Omitted for explicit simulations.
+   */
+  hasOutgoingCommits?: boolean;
   commitMessage?: string;
   /** "owner/repo", used for the github.repository context when known. */
   repository?: string;
@@ -35,6 +40,8 @@ export interface PrSpec {
   /** Head (source) branch. */
   head?: string;
   files: string[] | null;
+  /** HEAD commit message, used for GitHub's pull-request skip directives. */
+  commitMessage?: string;
   /** Activity type being simulated. Default: "opened". */
   activityType?: string;
   draft?: boolean;

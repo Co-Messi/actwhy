@@ -192,6 +192,135 @@ jobs:
     const w = wf(await evaluateWorkflows(files, spec), "pi.yml");
     expect(w.verdict).toBe("fires");
   });
+
+  it("skips a path-filtered workflow when the known changed-file set is empty", async () => {
+    const spec: PushSpec = { kind: "push", branch: "main", files: [] };
+    const w = wf(await evaluateWorkflows(files, spec), "pi.yml");
+    expect(w.verdict).toBe("skipped");
+    expect(codes(w.reasons)).toContain("no-changed-files");
+  });
+});
+
+describe("push path-filter edge cases", () => {
+  it("ignores paths filters for tag pushes", async () => {
+    const files = [
+      file(
+        "tag.yml",
+        `
+on:
+  push:
+    tags: ['v*']
+    paths: ['src/**']
+jobs:
+  j: {runs-on: ubuntu-latest, steps: [{run: echo}]}
+`,
+      ),
+    ];
+    const spec: PushSpec = {
+      kind: "push",
+      tag: "v1.0.0",
+      files: ["docs/release.md"],
+    };
+    const w = wf(await evaluateWorkflows(files, spec), "tag.yml");
+    expect(w.verdict).toBe("fires");
+  });
+
+  it("skips a paths workflow when the known changed-file set is empty", async () => {
+    const files = [
+      file(
+        "paths.yml",
+        `
+on:
+  push:
+    paths: ['src/**']
+jobs:
+  j: {runs-on: ubuntu-latest, steps: [{run: echo}]}
+`,
+      ),
+    ];
+    const spec: PushSpec = { kind: "push", branch: "main", files: [] };
+    const w = wf(await evaluateWorkflows(files, spec), "paths.yml");
+    expect(w.verdict).toBe("skipped");
+    expect(codes(w.reasons)).toContain("no-changed-files");
+  });
+});
+
+describe("commit-message skip directives", () => {
+  const files = [
+    file(
+      "skip.yml",
+      `
+on: [push, pull_request, pull_request_target]
+jobs:
+  j: {runs-on: ubuntu-latest, steps: [{run: echo}]}
+`,
+    ),
+  ];
+
+  it.each([
+    "[skip ci]",
+    "[ci skip]",
+    "[no ci]",
+    "[skip actions]",
+    "[actions skip]",
+    "[SKIP CI]",
+  ])("skips push workflows for %s", async (directive) => {
+    const spec: PushSpec = {
+      kind: "push",
+      branch: "main",
+      files: ["src/a.ts"],
+      commitMessage: `chore: save time ${directive}`,
+    };
+    const w = wf(await evaluateWorkflows(files, spec), "skip.yml");
+    expect(w.verdict).toBe("skipped");
+    expect(codes(w.reasons)).toContain("commit-message-skip");
+  });
+
+  it.each(["skip-checks:true", "skip-checks: true"])(
+    "skips when the final commit trailer is %s",
+    async (trailer) => {
+      const spec: PushSpec = {
+        kind: "push",
+        branch: "main",
+        files: ["src/a.ts"],
+        commitMessage: `chore: save time\n\n${trailer}`,
+      };
+      const w = wf(await evaluateWorkflows(files, spec), "skip.yml");
+      expect(w.verdict).toBe("skipped");
+      expect(codes(w.reasons)).toContain("commit-message-skip");
+    },
+  );
+
+  it("does not mistake incidental prose for a skip directive", async () => {
+    const spec: PushSpec = {
+      kind: "push",
+      branch: "main",
+      files: ["src/a.ts"],
+      commitMessage: "docs: explain skip ci and skip-checks: true\n\nnot a trailer",
+    };
+    expect(wf(await evaluateWorkflows(files, spec), "skip.yml").verdict).toBe("fires");
+  });
+
+  it("applies to pull_request but not pull_request_target", async () => {
+    const base: PrSpec = {
+      kind: "pull_request",
+      base: "main",
+      files: ["src/a.ts"],
+      commitMessage: "test: update [skip ci]",
+    };
+    const pr = wf(await evaluateWorkflows(files, base), "skip.yml");
+    expect(pr.verdict).toBe("skipped");
+    expect(codes(pr.reasons)).toContain("commit-message-skip");
+
+    const target = wf(
+      await evaluateWorkflows(
+        files,
+        { ...base, event: "pull_request_target" },
+      ),
+      "skip.yml",
+    );
+    expect(target.verdict).toBe("fires");
+  });
 });
 
 // ── (c) workflow_dispatch only ───────────────────────────────────────────

@@ -32,7 +32,7 @@
     "name": "actwhy",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "Any",
-    "description": "Know which GitHub Actions workflows will fire — and exactly why the others won't — before you push. A three-valued (fires / skipped / unknown) trigger explainer built on GitHub's own workflow parser.",
+    "description": "Know which GitHub Actions workflows will fire — and exactly why the others won't — before you push. An honest fires / skipped / unknown / error trigger explainer built on GitHub's own workflow parser.",
     "url": "https://actwhy.vercel.app",
     "downloadUrl": "https://github.com/Co-Messi/actwhy",
     "softwareHelp": "https://github.com/Co-Messi/actwhy",
@@ -206,6 +206,19 @@
     }
     .hero__sub code { color: var(--ink); background: var(--panel); border: 1px solid var(--rule); padding: 0 5px; }
     .hero__cta { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-bottom: 34px; }
+    .hero-primary {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 12px 17px; border: 1px solid var(--ink); background: var(--ink);
+      color: var(--bg); font-size: 12px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; box-shadow: 4px 4px 0 var(--rule-2);
+      transition: transform .14s ease, box-shadow .14s ease;
+    }
+    .hero-primary:hover {
+      color: var(--bg); border-bottom-color: var(--ink); transform: translate(-1px, -1px);
+      box-shadow: 6px 6px 0 var(--rule-2);
+    }
+    .hero-primary::after { content: "↓"; font-size: 14px; }
+    .hero-secondary { color: var(--ink-dim); font-size: 12px; border-bottom-color: var(--rule-2); }
 
     .cmd {
       display: inline-flex; align-items: center; gap: 12px;
@@ -256,6 +269,8 @@
     .legend__item[data-v="skipped"] .legend__word { color: var(--skip); }
     .legend__item[data-v="unknown"] .legend__eye { color: var(--unknown); border: 1.5px solid rgba(255,176,32,.5); }
     .legend__item[data-v="unknown"] .legend__word { color: var(--unknown); }
+    .legend__item[data-v="error"] .legend__eye { color: var(--error); border: 1.5px solid rgba(209,131,255,.5); }
+    .legend__item[data-v="error"] .legend__word { color: var(--error); }
     .legend__caption {
       display: flex; align-items: center; padding: 13px 18px;
       color: var(--ink-faint); font-size: 11px; letter-spacing: 0.05em;
@@ -268,6 +283,25 @@
       display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
       gap: 24px; align-items: start;
     }
+    .ownership {
+      grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between;
+      gap: 22px; padding: 16px 18px; border: 1px solid var(--rule-2);
+      background: linear-gradient(90deg, var(--plate), var(--panel));
+      box-shadow: inset 0 1px 0 var(--rule-hi);
+    }
+    .ownership__copy { display: flex; flex-direction: column; gap: 3px; }
+    .ownership__eyebrow {
+      color: var(--unknown); font-size: 10px; text-transform: uppercase;
+      letter-spacing: .16em;
+    }
+    .ownership strong { font-size: 14px; color: var(--ink); }
+    .ownership span:last-child { color: var(--ink-dim); font-size: 12px; }
+    .ownership__button {
+      flex: none; border: 1px solid var(--ink-dim); background: var(--bg); color: var(--ink);
+      padding: 9px 12px; font: 700 11px var(--mono); letter-spacing: .08em;
+      text-transform: uppercase; cursor: pointer;
+    }
+    .ownership__button:hover { border-color: var(--ink); background: var(--ink); color: var(--bg); }
 
     /* an instrument plate: sharp, hairline-bounded, with corner registration ticks */
     .panel {
@@ -319,9 +353,12 @@
     .share-note {
       padding: 9px 14px; border-bottom: 1px solid var(--rule);
       font-size: 11px; color: var(--ink-faint); letter-spacing: 0.01em; line-height: 1.5;
-      display: flex; gap: 8px; align-items: flex-start; background: var(--inset);
+      display: block; background: var(--inset);
     }
-    .share-note::before { content: "▶"; color: var(--ink-dim); font-size: 8px; margin-top: 4px; flex: none; }
+    .share-note::before {
+      content: "▶"; color: var(--ink-dim); font-size: 8px;
+      display: inline-block; margin-right: 8px; vertical-align: 1px;
+    }
     .share-note b { color: var(--ink-dim); font-weight: 700; }
 
     /* tabs — index cards clipped onto the editor */
@@ -434,6 +471,23 @@
     .summary__totals { display: flex; align-items: center; gap: 9px; font-size: 11px; color: var(--ink-faint); letter-spacing: 0.06em; text-transform: uppercase; }
     .summary__stat { font-variant-numeric: tabular-nums; }
 
+    .resolution {
+      display: grid; grid-template-columns: minmax(150px, .7fr) minmax(0, 1.3fr);
+      gap: 14px; align-items: center; margin: -3px 0 16px; padding: 12px;
+      border: 1px solid var(--rule); background: var(--inset);
+    }
+    .resolution__copy { display: flex; flex-direction: column; gap: 3px; }
+    .resolution__eyebrow {
+      color: var(--ink-faint); font-size: 9px; letter-spacing: .16em; text-transform: uppercase;
+    }
+    .resolution__title { color: var(--ink-dim); font-size: 11px; }
+    .resolution__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+    .resolution__action {
+      border: 1px solid var(--rule-2); background: var(--panel); color: var(--ink-dim);
+      padding: 7px 9px; font: 600 10px var(--mono); cursor: pointer;
+    }
+    .resolution__action:hover { color: var(--ink); border-color: var(--ink-dim); }
+
     /* banners — master-alarm annunciator states */
     .banner { border-radius: 0; padding: 18px; margin-bottom: 18px; position: relative; overflow: hidden; }
     .banner--nothing {
@@ -493,7 +547,6 @@
     .wf {
       position: relative; background: var(--panel); border: 1px solid var(--rule);
       border-radius: 0; padding: 13px 15px 13px 20px;
-      animation: powerOn .16s ease-out both;
     }
     /* the rail: solid=fires, hatch=skipped, hazard-stripe=unknown */
     .wf::before {
@@ -582,12 +635,13 @@
     .job .reason { margin-top: 7px; padding-left: 28px; }
     .job .reason__msg { font-size: 12.5px; }
 
-    @keyframes powerOn { from { opacity: 0.35; transform: translateY(3px); } to { opacity: 1; transform: none; } }
-    .wf-list .wf:nth-child(1) { animation-delay: 0s; }
-    .wf-list .wf:nth-child(2) { animation-delay: .03s; }
-    .wf-list .wf:nth-child(3) { animation-delay: .06s; }
-    .wf-list .wf:nth-child(4) { animation-delay: .09s; }
-    .wf-list .wf:nth-child(n+5) { animation-delay: .12s; }
+    @keyframes verdictChanged {
+      0% { box-shadow: inset 0 0 0 1px transparent; }
+      35% { box-shadow: inset 0 0 0 1px var(--ink-dim), 0 0 18px rgba(236,233,225,.08); }
+      100% { box-shadow: inset 0 0 0 1px transparent; }
+    }
+    .results--verdict-changed .summary,
+    .results--verdict-changed .banner { animation: verdictChanged .55s ease-out; }
 
     /* ============================== sections ========================== */
     section.band { padding: 54px 0; border-top: 1px solid var(--rule); position: relative; }
@@ -652,6 +706,8 @@
     .foot__note { flex-basis: 100%; color: var(--ink-faint); font-size: 11px; padding-top: 14px; border-top: 1px solid var(--rule); line-height: 1.5; }
     .foot__note b { color: var(--ink-dim); }
 
+    .mobile-verdict { display: none; }
+
     /* ============================= responsive ========================= */
     @media (max-width: 940px) {
       .play__grid { grid-template-columns: minmax(0, 1fr); }
@@ -662,6 +718,17 @@
       .install-grid { grid-template-columns: minmax(0, 1fr); max-width: none; }
       .foot__built { text-align: left; }
       h1.hero__title { max-width: 22ch; }
+      body { padding-bottom: 72px; }
+      .mobile-verdict {
+        position: fixed; z-index: 60; left: 18px; right: 18px; bottom: 14px;
+        display: flex; align-items: center; justify-content: space-between; gap: 14px;
+        padding: 11px 13px; border: 1px solid var(--ink-dim); background: rgba(16,17,19,.96);
+        color: var(--ink); font: 700 11px var(--mono); letter-spacing: .04em;
+        box-shadow: 0 8px 30px rgba(0,0,0,.55), inset 0 1px 0 var(--rule-hi);
+        backdrop-filter: blur(10px); cursor: pointer;
+      }
+      .mobile-verdict__action { color: var(--unknown); text-transform: uppercase; font-size: 9px; letter-spacing: .1em; }
+      .mobile-verdict--changed { animation: verdictChanged .55s ease-out; }
     }
     @media (max-width: 560px) {
       .wrap { padding: 0 18px; }
@@ -674,6 +741,13 @@
       .summary { flex-wrap: wrap; }
       .legend__item { flex: 1 1 100%; border-right: 0; border-bottom: 1px solid var(--rule); }
       .legend__caption { border-left: 0; }
+      .ownership { align-items: flex-start; flex-direction: column; gap: 12px; }
+      .ownership__button { width: 100%; }
+      .resolution { grid-template-columns: 1fr; }
+      .resolution__actions { justify-content: flex-start; }
+      .resolution__action { flex: 1 1 auto; }
+      .hero__cta { align-items: stretch; }
+      .hero-primary { width: 100%; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -713,21 +787,20 @@
           Paste your GitHub Actions YAML, simulate a push or pull request, and get an instant, honest verdict for every workflow — down to the exact filter or <code>if:</code> condition that stops it. Runs entirely in your browser.
         </p>
         <div class="hero__cta">
+          <a class="hero-primary" href="#playground">Try the live playground</a>
           <div class="cmd">
             <span class="prompt" aria-hidden="true">$</span>
             <code>npx actwhy</code>
             <button class="copybtn" type="button" data-copy="npx actwhy" aria-label="Copy npx actwhy">copy</button>
           </div>
-          <a class="ghpill" href="https://github.com/Co-Messi/actwhy" rel="noopener">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-            <span>Star on GitHub</span>
-          </a>
+          <a class="hero-secondary" href="https://github.com/Co-Messi/actwhy" rel="noopener">View source on GitHub</a>
         </div>
-        <div class="legend" role="img" aria-label="Three verdicts: FIRES, SKIPPED, UNKNOWN — never a guess.">
+        <div class="legend" role="img" aria-label="Four verdicts: FIRES, SKIPPED, UNKNOWN, ERROR — never a guess.">
           <span class="legend__item" data-v="fires"><span class="legend__eye" aria-hidden="true">✔</span><span class="legend__word">FIRES</span></span>
           <span class="legend__item" data-v="skipped"><span class="legend__eye" aria-hidden="true">✘</span><span class="legend__word">SKIPPED</span></span>
           <span class="legend__item" data-v="unknown"><span class="legend__eye" aria-hidden="true">?</span><span class="legend__word">UNKNOWN</span></span>
-          <span class="legend__caption">Three verdicts, one lit lamp — never a guess.</span>
+          <span class="legend__item" data-v="error"><span class="legend__eye" aria-hidden="true">✖</span><span class="legend__word">ERROR</span></span>
+          <span class="legend__caption">Four honest outcomes, one exact explanation.</span>
         </div>
       </div>
     </section>
@@ -735,6 +808,15 @@
     <section class="play" id="playground">
       <h2 class="visually-hidden">Playground: simulate GitHub Actions triggers in your browser</h2>
       <div class="wrap play__grid">
+        <div class="ownership">
+          <div class="ownership__copy">
+            <span class="ownership__eyebrow">Your turn</span>
+            <strong>Replace this example with your workflow.</strong>
+            <span>Paste the YAML you are debugging, then change one branch or path and watch the verdict update.</span>
+          </div>
+          <button class="ownership__button" id="focus-editor" type="button">Edit my workflow</button>
+        </div>
+
         <!-- LEFT: editor + event controls -->
         <div class="panel" role="region" aria-label="Workflow editor and event controls">
           <div class="panel__bar">
@@ -750,7 +832,7 @@
             </div>
           </div>
 
-          <p class="share-note">Share encodes your whole workflow into <b>the link itself</b> — nothing is uploaded, no server ever sees it.</p>
+          <p class="share-note">The shared URL contains your <b>workflow YAML and event data</b>, including changed paths and commit text. The fragment is not uploaded by actwhy, but the full link can remain in <b>browser history</b> and any <b>chat, issue, or logging tool</b> you paste it into. Remove secrets before sharing.</p>
 
           <div class="tabs" id="tabs" role="tablist" aria-label="Workflow files"></div>
           <div class="editor-wrap">
@@ -810,11 +892,11 @@
             </div>
 
             <details class="advanced" id="commit-field">
-              <summary>Advanced — commit message</summary>
+              <summary>Advanced — HEAD commit message</summary>
               <div class="field">
                 <label for="commit-message">Commit message</label>
                 <textarea class="inp" id="commit-message" spellcheck="false" placeholder="e.g. fix: patch parser [skip ci]"></textarea>
-                <div class="hint">Used by conditions like <code>contains(github.event.head_commit.message, '[skip ci]')</code>.</div>
+                <div class="hint">Used by message conditions and GitHub's native <code>[skip ci]</code> / <code>skip-checks: true</code> directives for pushes and pull requests.</div>
               </div>
             </details>
           </div>
@@ -906,6 +988,11 @@
     </section>
   </main>
 
+  <button class="mobile-verdict" id="mobile-verdict" type="button" hidden>
+    <span id="mobile-verdict-text">Verdict ready</span>
+    <span class="mobile-verdict__action">View updated verdict ↑</span>
+  </button>
+
   <footer class="foot">
     <div class="wrap foot__row">
       <div class="foot__links">
@@ -915,7 +1002,7 @@
         <a href="https://github.com/Co-Messi/actwhy/issues/new?labels=fidelity&amp;title=Fidelity%20bug%3A%20" rel="noopener">Report a fidelity bug</a>
       </div>
       <div class="foot__built">Built on <a href="https://github.com/actions/languageservices" rel="noopener">@actions/workflow-parser</a> + @actions/expressions.</div>
-      <div class="foot__note">Privacy: everything runs in your browser. <b>Share</b> links carry your pasted workflow encoded in the URL itself — nothing is ever uploaded to a server.</div>
+      <div class="foot__note">Privacy: evaluation runs locally with zero telemetry. <b>Share</b> links contain your YAML and event data in the URL fragment; review them before pasting into browser history, chat, issue trackers, or logs.</div>
     </div>
   </footer>
 </body>

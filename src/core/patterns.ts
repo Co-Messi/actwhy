@@ -28,6 +28,12 @@ interface Atom {
   /** Predicate for one character. */
   test: (c: string) => boolean;
   quant: Quant;
+  /**
+   * A slash-delimited globstar is zero or more complete path segments,
+   * including the separating slash. Keeping that construct explicit avoids
+   * making the slash mandatory when it matches zero directories.
+   */
+  directoryGlobstar?: boolean;
 }
 
 export interface CompiledPattern {
@@ -96,10 +102,18 @@ function parseAtoms(pattern: string, original: string): Atom[] {
   while (i < pattern.length) {
     const c = pattern[i];
     if (c === "*") {
+      const starStart = i;
       let stars = 0;
       while (pattern[i] === "*") {
         stars++;
         i++;
+      }
+      const startsPathSegment =
+        starStart === 0 || pattern[starStart - 1] === "/";
+      if (stars >= 2 && startsPathSegment && pattern[i] === "/") {
+        atoms.push({ test: ANY, quant: "*", directoryGlobstar: true });
+        i++;
+        continue;
       }
       push(stars >= 2 ? ANY : NOT_SLASH, "*");
       continue;
@@ -140,7 +154,7 @@ function parseAtoms(pattern: string, original: string): Atom[] {
 
 /** True when the atom can match the empty string. */
 function canBeEmpty(a: Atom): boolean {
-  return a.quant === "?" || a.quant === "*";
+  return a.directoryGlobstar === true || a.quant === "?" || a.quant === "*";
 }
 
 /**
@@ -151,13 +165,22 @@ function canBeEmpty(a: Atom): boolean {
 function matchAtoms(atoms: Atom[], value: string): boolean {
   const n = atoms.length;
   let state = new Array<boolean>(n + 1).fill(false);
+  let partial = new Array<boolean>(n).fill(false);
   state[0] = true;
   for (let j = 0; j < n; j++) state[j + 1] = state[j] && canBeEmpty(atoms[j]);
 
   for (const c of value) {
     const next = new Array<boolean>(n + 1).fill(false);
+    const nextPartial = new Array<boolean>(n).fill(false);
     for (let j = 0; j < n; j++) {
       const a = atoms[j];
+      if (a.directoryGlobstar) {
+        if (state[j] || partial[j]) {
+          nextPartial[j] = true;
+          if (c === "/") next[j + 1] = true;
+        }
+        continue;
+      }
       if (!a.test(c)) continue;
       // Enter atom j from "before it"…
       if (state[j]) next[j + 1] = true;
@@ -168,7 +191,8 @@ function matchAtoms(atoms: Atom[], value: string): boolean {
       if (next[j] && canBeEmpty(atoms[j])) next[j + 1] = true;
     }
     state = next;
-    if (!state.includes(true)) return false;
+    partial = nextPartial;
+    if (!state.includes(true) && !partial.includes(true)) return false;
   }
   return state[n];
 }

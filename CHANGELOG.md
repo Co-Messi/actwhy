@@ -16,11 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`--exit-code`** flag: exit `3` if any workflow is invalid, `4` if nothing fires — for using actwhy as a CI gate. Default behavior is unchanged (always exit `0`).
 - Workflow `name:` is now read and exposed on each verdict (`--json`).
+- Commit-message skip directives are evaluated for `push` and `pull_request`, including the `skip-checks: true` trailer.
+- GitHub object-filter expressions such as `pull_request.labels.*.name` are evaluated when payload values are known.
 
 ### Changed
 
-- A static matrix exceeding GitHub's 256-job cap now emits a `matrix-over-limit` warning instead of reporting the job as firing.
-- A workflow with both `paths` and `paths-ignore` on one event now warns (`paths-and-paths-ignore`) and follows GitHub (uses `paths`).
+- Slash-delimited globstars now match zero directories, so `docs/**/*.md` includes `docs/README.md`.
+- Tag pushes ignore path filters, matching GitHub, and known-empty diffs skip path-filtered workflows.
+- A static matrix exceeding GitHub's 256-job cap is now a `matrix-over-limit` job error and contributes zero firing variants.
+- Mutually exclusive include/ignore filter pairs are reported as invalid instead of receiving invented precedence.
+- An in-sync branch now reports zero outgoing files instead of silently substituting the last commit.
 - `--event` payloads are validated (must be a JSON object, size-capped) and `__proto__`/`constructor` keys are ignored.
 - The CLI errors clearly on Node < 20; CI actions are pinned by commit SHA.
 
@@ -48,7 +53,7 @@ Initial release.
 
 - `schedule`, `merge_group`, `workflow_run`, and `workflow_call` are classified but not evaluated.
 - Concurrency is not modeled; step-level `env:` is not evaluated; verdicts assume runs succeed.
-- The >1,000-changed-files paths-filter skip that GitHub performs is not modeled.
+- GitHub's >1,000-commit/diff-timeout fallback and 3,000-file path-filter window are not modeled.
 
 See [docs/limitations.md](docs/limitations.md) for the full list and what actwhy reports in each case.
 

@@ -106,6 +106,26 @@ describe("string functions", () => {
   it("fromJSON('true') is truthy", () => {
     expect(evaluateIf("fromJSON('true')", ctx, OK).truthiness).toBe(true);
   });
+
+  it("projects filtered arrays such as pull-request label names", () => {
+    const pr = buildRootContext({
+      kind: "pull_request",
+      base: "main",
+      files: ["src/a.ts"],
+      payload: {
+        pull_request: {
+          labels: [{ name: "bug" }, { name: "urgent" }],
+        },
+      },
+    });
+    const out = evaluateIf(
+      "contains(github.event.pull_request.labels.*.name, 'bug')",
+      pr,
+      OK,
+    );
+    expect(out.error).toBeUndefined();
+    expect(out.truthiness).toBe(true);
+  });
 });
 
 describe("status functions", () => {

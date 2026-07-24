@@ -4,12 +4,9 @@
  * (a) When local `main` is AHEAD of `origin/main`, the CLI must simulate the
  *     OUTGOING commit's files — and the human header count must agree with the
  *     JSON `event.files`.
- * (b) When the branch is IN SYNC (0 outgoing), the DOCUMENTED post-fix
- *     behavior is to fall back to the LAST commit's files (HEAD~1..HEAD) so a
- *     paths-filtered workflow still fires instead of spuriously reporting
- *     "nothing fires" from an empty file set. If that fallback isn't in the
- *     build yet (a concurrent fix), scenario (b) skips itself at runtime
- *     rather than asserting the current buggy empty-set behavior.
+ * (b) When the branch is IN SYNC (0 outgoing), the CLI must report a known
+ *     empty outgoing set. It must not quietly substitute the last commit and
+ *     claim that a future push contains already-pushed files.
  *
  * The CLI is bundled to a PRIVATE temp path (see e2e-event) to avoid a
  * parallel-worker race on the shared dist/actwhy.js. Git setup is hermetic:
@@ -39,6 +36,14 @@ jobs:
     steps: [{run: echo build}]
 `;
 
+const UNFILTERED_YAML = `name: Unfiltered
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps: [{run: echo build}]
+`;
+
 // c1's changed-file set (both the outgoing diff in (a) and the last-commit
 // fallback in (b)). src/app.ts makes the paths:['src/**'] filter match.
 const C1_FILES = ["CHANGELOG.md", "src/app.ts"];
@@ -53,6 +58,8 @@ let binPath: string;
 let workDir: string;
 let repoAhead: string;
 let repoInSync: string;
+let repoEmptyAhead: string;
+let repoBehind: string;
 
 function runCli(args: string[], cwd: string): Promise<CliResult> {
   return new Promise((resolve) => {
@@ -94,6 +101,10 @@ function makeRepo(name: string, pushC1: boolean): string {
   // c0: base file + workflow
   writeFileSync(join(repo, "README.md"), "# base\n");
   writeFileSync(join(repo, ".github", "workflows", "ci.yml"), CI_YAML);
+  writeFileSync(
+    join(repo, ".github", "workflows", "unfiltered.yml"),
+    UNFILTERED_YAML,
+  );
   g(["add", "-A"], repo);
   g(["commit", "--no-verify", "-m", "c0: base"], repo);
   g(["remote", "add", "origin", bare], repo);
@@ -133,6 +144,11 @@ beforeAll(async () => {
 
   repoAhead = makeRepo("ahead", false);
   repoInSync = makeRepo("insync", true);
+  repoEmptyAhead = makeRepo("empty-ahead", true);
+  g(["commit", "--allow-empty", "--no-verify", "-m", "c2: empty outgoing commit"], repoEmptyAhead);
+  repoBehind = makeRepo("behind", true);
+  g(["checkout", "-b", "behind", "HEAD~1"], repoBehind);
+  g(["branch", "--set-upstream-to", "origin/main", "behind"], repoBehind);
 }, 120_000);
 
 afterAll(() => {
@@ -149,8 +165,8 @@ describe("git changed-file inference for push", () => {
     const jsonFiles = (report.event as { files: string[] | null }).files ?? [];
     expect([...jsonFiles].sort()).toEqual([...C1_FILES].sort());
 
-    // the outgoing paths-matching file makes the workflow fire
-    expect(report.workflows[0].verdict).toBe("fires");
+    // the outgoing paths-matching file makes both workflows fire
+    expect(report.workflows.every((workflow) => workflow.verdict === "fires")).toBe(true);
     expect(report.nothingFires).toBe(false);
 
     // human header: "<n> changed files (vs upstream …)" — n must equal JSON's count
@@ -161,23 +177,66 @@ describe("git changed-file inference for push", () => {
     expect(Number(m![1])).toBe(jsonFiles.length);
   }, 30_000);
 
-  it("(b) IN SYNC (0 outgoing) → falls back to the last commit's files (post-fix behavior)", async (ctx) => {
+  it("(b) IN SYNC (0 outgoing) → reports an explicit empty outgoing set", async () => {
     const json = await runCli(["push", "-C", repoInSync, "--json"], repoInSync);
     expect(json.code).toBe(0);
     const report = JSON.parse(json.stdout) as Report;
-    const files = (report.event as { files: string[] | null }).files ?? [];
+    const event = report.event as {
+      files: string[] | null;
+      hasOutgoingCommits?: boolean;
+    };
+    const files = event.files ?? [];
 
-    if (!Array.isArray(files) || files.length === 0) {
-      // Fallback not present in this build (concurrent fix pending): the
-      // in-sync diff is empty. Skip rather than asserting the buggy empty set.
-      // TODO(git.ts): when @{push}..HEAD is empty, fall back to HEAD~1..HEAD.
-      ctx.skip();
-      return;
-    }
+    expect(files).toEqual([]);
+    expect(event.hasOutgoingCommits).toBe(false);
+    expect(report.nothingFires).toBe(true);
+    expect(report.workflows.every((workflow) => workflow.verdict === "skipped")).toBe(true);
+    expect(
+      report.workflows.every((workflow) =>
+        workflow.reasons.some((reason) => reason.code === "no-outgoing-commits"),
+      ),
+    ).toBe(true);
 
-    // Post-fix: last commit's files, and NOT a spurious nothing-fires.
-    expect([...files].sort()).toEqual([...C1_FILES].sort());
+    const human = await runCli(["push", "-C", repoInSync], repoInSync);
+    expect(human.stdout).toContain("no outgoing commits");
+  }, 30_000);
+
+  it("(c) empty commit AHEAD → simulates a real push even though no files changed", async () => {
+    const json = await runCli(["push", "-C", repoEmptyAhead, "--json"], repoEmptyAhead);
+    expect(json.code).toBe(0);
+    const report = JSON.parse(json.stdout) as Report;
+    const event = report.event as {
+      files: string[] | null;
+      hasOutgoingCommits?: boolean;
+    };
+
+    expect(event.files).toEqual([]);
+    expect(event.hasOutgoingCommits).toBe(true);
     expect(report.nothingFires).toBe(false);
-    expect(report.workflows[0].verdict).toBe("fires");
+    expect(
+      report.workflows.find((workflow) => workflow.file === "unfiltered.yml")?.verdict,
+    ).toBe("fires");
+    expect(
+      report.workflows.find((workflow) => workflow.file === "ci.yml")?.reasons[0]?.code,
+    ).toBe("no-changed-files");
+  }, 30_000);
+
+  it("(d) branch only BEHIND upstream → does not mistake the tree diff for an outgoing push", async () => {
+    const json = await runCli(["push", "-C", repoBehind, "--json"], repoBehind);
+    expect(json.code).toBe(0);
+    const report = JSON.parse(json.stdout) as Report;
+    const event = report.event as {
+      files: string[] | null;
+      hasOutgoingCommits?: boolean;
+    };
+
+    expect(event.files?.length).toBeGreaterThan(0);
+    expect(event.hasOutgoingCommits).toBe(false);
+    expect(report.nothingFires).toBe(true);
+    expect(
+      report.workflows.every((workflow) =>
+        workflow.reasons.some((reason) => reason.code === "no-outgoing-commits"),
+      ),
+    ).toBe(true);
   }, 30_000);
 });

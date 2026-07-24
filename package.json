@@ -1,6 +1,6 @@
 {
   "name": "actwhy",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Know which GitHub Actions workflows will fire \u2014 and exactly why the others won't \u2014 before you push.",
   "keywords": [
     "github-actions",

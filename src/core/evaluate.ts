@@ -299,10 +299,16 @@ function evaluateJob(
     base.matrix = matrix.count;
     base.matrixNote = matrix.note;
     if (matrix.overLimit) {
-      warnings.push({
-        code: "matrix-over-limit",
-        message: `job "${job.id.value}": ${matrix.note}`,
-      });
+      return {
+        ...base,
+        verdict: "error",
+        reasons: [
+          {
+            code: "matrix-over-limit",
+            message: `job "${job.id.value}" ${matrix.note ?? "exceeds GitHub's 256-job matrix limit"}`,
+          },
+        ],
+      };
     }
   }
 

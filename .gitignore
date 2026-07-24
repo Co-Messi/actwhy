@@ -13,3 +13,5 @@ coverage/
 .internal/
 .vercel
 .roast/
+
+.worktrees/

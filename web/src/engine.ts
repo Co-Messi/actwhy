@@ -56,6 +56,7 @@ export function buildSpec(state: AppState): EventSpec {
     if (head) pr.head = head;
     const activity = state.prActivity.trim();
     if (activity) pr.activityType = activity;
+    if (commitMessage) pr.commitMessage = commitMessage;
     return pr;
   }
 

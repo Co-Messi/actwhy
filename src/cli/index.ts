@@ -38,13 +38,13 @@ const SHARED: OptConfig = {
   "no-color": { type: "boolean" },
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "V" },
+  "commit-message": { type: "string", short: "m" },
 };
 
 const PUSH_OPTS: OptConfig = {
   ...SHARED,
   branch: { type: "string", short: "b" },
   tag: { type: "string" },
-  "commit-message": { type: "string", short: "m" },
 };
 
 const PR_OPTS: OptConfig = {
@@ -229,6 +229,7 @@ async function run(): Promise<number> {
     }
 
     let pushFiles: string[] | null;
+    let hasOutgoingCommits: boolean | undefined;
     if (filesFlag !== undefined) {
       pushFiles = filesFlag;
       filesSource = "from --files";
@@ -237,6 +238,9 @@ async function run(): Promise<number> {
       if (inferred) {
         pushFiles = inferred.files;
         filesSource = inferred.source;
+        if (branchFlag === undefined && tagFlag === undefined) {
+          hasOutgoingCommits = inferred.hasOutgoingCommits;
+        }
       } else {
         pushFiles = null;
         notes.push("could not infer changed files from git — paths filters will be UNKNOWN (pass --files)");
@@ -250,6 +254,7 @@ async function run(): Promise<number> {
       ...(branch !== undefined ? { branch } : {}),
       ...(tag !== undefined ? { tag } : {}),
       files: pushFiles,
+      ...(hasOutgoingCommits !== undefined ? { hasOutgoingCommits } : {}),
       ...(commitMessage !== undefined ? { commitMessage } : {}),
       ...(repository !== undefined ? { repository } : {}),
       ...(defaultBranch !== undefined ? { defaultBranch } : {}),
@@ -270,6 +275,7 @@ async function run(): Promise<number> {
     const head = getStr("head") ?? git.currentBranch(root) ?? undefined;
     const activityType = getStr("type") ?? "opened";
     const event = getBool("target") ? "pull_request_target" : "pull_request";
+    const commitMessage = getStr("commit-message") ?? git.headCommitMessage(root) ?? undefined;
 
     let prFiles: string[] | null;
     if (filesFlag !== undefined) {
@@ -289,6 +295,7 @@ async function run(): Promise<number> {
       ...(head !== undefined ? { head } : {}),
       files: prFiles,
       activityType,
+      ...(commitMessage !== undefined ? { commitMessage } : {}),
       ...(getBool("draft") ? { draft: true } : {}),
       ...(repository !== undefined ? { repository } : {}),
       ...(defaultBranch !== undefined ? { defaultBranch } : {}),
@@ -368,6 +375,7 @@ push OPTIONS
 pr OPTIONS
       --base <branch>      target branch (default: git default branch, else "main")
       --head <branch>      source branch (default: current git branch)
+  -m, --commit-message <s> HEAD commit message to simulate (default: HEAD message)
       --type <activity>    activity type: opened, synchronize, reopened … (default: opened)
       --draft              simulate a draft pull request
       --target             simulate pull_request_target instead of pull_request

@@ -66,6 +66,8 @@ export interface ChangedFiles {
   files: string[];
   /** Human label, e.g. "vs upstream origin/main" or "last commit only (no upstream)". */
   source: string;
+  /** Whether the inferred upstream range contains a push event to simulate. */
+  hasOutgoingCommits?: boolean;
 }
 
 /**
@@ -83,11 +85,15 @@ export function changedFilesForPush(dir: string): ChangedFiles | null {
     const out = git(["diff", "--name-only", "@{push}..HEAD"], dir);
     if (out !== null) {
       const files = uniqLines(out);
-      // In-sync branch (0 outgoing commits): an empty set would produce a
-      // false "NOTHING fires". The question the user is asking is "what did
-      // my last push trigger?" — simulate the last commit instead.
-      if (files.length > 0) return { files, source: `vs upstream ${pushName}` };
-      return lastCommitFiles(dir, `in sync with ${pushName} — simulating the last commit's push`) ?? { files, source: `vs upstream ${pushName}` };
+      const hasOutgoingCommits = outgoingCommitStatus("@{push}", dir);
+      return {
+        files,
+        source:
+          hasOutgoingCommits === false
+            ? `no outgoing commits relative to ${pushName}`
+            : `vs upstream ${pushName}`,
+        ...(hasOutgoingCommits !== undefined ? { hasOutgoingCommits } : {}),
+      };
     }
   }
 
@@ -96,8 +102,15 @@ export function changedFilesForPush(dir: string): ChangedFiles | null {
     const out = git(["diff", "--name-only", "@{u}..HEAD"], dir);
     if (out !== null) {
       const files = uniqLines(out);
-      if (files.length > 0) return { files, source: `vs upstream ${upName}` };
-      return lastCommitFiles(dir, `in sync with ${upName} — simulating the last commit's push`) ?? { files, source: `vs upstream ${upName}` };
+      const hasOutgoingCommits = outgoingCommitStatus("@{u}", dir);
+      return {
+        files,
+        source:
+          hasOutgoingCommits === false
+            ? `no outgoing commits relative to ${upName}`
+            : `vs upstream ${upName}`,
+        ...(hasOutgoingCommits !== undefined ? { hasOutgoingCommits } : {}),
+      };
     }
   }
 
@@ -107,9 +120,22 @@ export function changedFilesForPush(dir: string): ChangedFiles | null {
 
   // Single-commit repo: HEAD has no parent, so show HEAD's own files.
   const out = git(["show", "--name-only", "--format=", "HEAD"], dir);
-  if (out !== null) return { files: uniqLines(out), source: "first commit (all files)" };
+  if (out !== null) {
+    return {
+      files: uniqLines(out),
+      source: "first commit (all files)",
+      hasOutgoingCommits: true,
+    };
+  }
 
   return null;
+}
+
+/** Whether `<upstream>..HEAD` contains commits, independent of its net file diff. */
+function outgoingCommitStatus(upstream: string, dir: string): boolean | undefined {
+  const raw = git(["rev-list", "--count", `${upstream}..HEAD`], dir);
+  if (raw === null || !/^\d+$/.test(raw)) return undefined;
+  return Number(raw) > 0;
 }
 
 function lastCommitFiles(dir: string, source: string): ChangedFiles | null {
@@ -117,7 +143,7 @@ function lastCommitFiles(dir: string, source: string): ChangedFiles | null {
   if (hasParent === null) return null;
   const out = git(["diff", "--name-only", "HEAD~1..HEAD"], dir);
   if (out === null) return null;
-  return { files: uniqLines(out), source };
+  return { files: uniqLines(out), source, hasOutgoingCommits: true };
 }
 
 /** Result of inferring a PR's changed files; `files` is null when it can't be diffed. */

@@ -49,20 +49,21 @@ function matrixWorkflow(a: number, b: number): string {
 
 // ── Matrix 256 hard cap ─────────────────────────────────────────────────────
 
-describe("matrix over-limit warning (GitHub's 256-job cap)", () => {
-  it("flags a matrix that expands to >256 static combos and still reports the job", async () => {
+describe("matrix over-limit error (GitHub's 256-job cap)", () => {
+  it("marks a matrix that expands to >256 static combos as an error", async () => {
     // 17 x 16 = 272 > 256.
     const report = await evaluateWorkflows([file("m.yml", matrixWorkflow(17, 16))], mainPush);
     const w = report.workflows[0];
     expect(w.verdict).toBe("fires");
 
-    const over = w.warnings.find((r) => r.code === "matrix-over-limit");
-    expect(over, "expected a matrix-over-limit warning").toBeDefined();
-
-    // The job is still present and reported, with the full (over-limit) count.
+    // The job is retained for diagnosis, but it cannot truthfully be counted
+    // as firing because GitHub rejects the expansion.
     expect(w.jobs).toHaveLength(1);
-    expect(w.jobs[0].verdict).toBe("fires");
+    expect(w.jobs[0].verdict).toBe("error");
+    expect(w.jobs[0].reasons.map((r) => r.code)).toContain("matrix-over-limit");
     expect(w.jobs[0].matrix).toBe(272);
+    expect(report.summary.jobsFiring).toBe(0);
+    expect(report.summary.matrixVariantsFiring).toBe(0);
   });
 
   it("does NOT warn when the matrix is exactly 256 (at the cap, not over it)", async () => {
@@ -70,14 +71,14 @@ describe("matrix over-limit warning (GitHub's 256-job cap)", () => {
     const report = await evaluateWorkflows([file("m.yml", matrixWorkflow(16, 16))], mainPush);
     const w = report.workflows[0];
     expect(w.jobs[0].matrix).toBe(256);
-    expect(w.warnings.some((r) => r.code === "matrix-over-limit")).toBe(false);
+    expect(w.jobs[0].verdict).toBe("fires");
   });
 });
 
 // ── paths + paths-ignore both set ───────────────────────────────────────────
 
 describe("paths and paths-ignore both set on one event", () => {
-  it("warns and follows `paths` (paths-ignore dropped, matching GitHub)", async () => {
+  it("reports an error instead of guessing which mutually exclusive filter wins", async () => {
     const content = [
       "on:",
       "  push:",
@@ -88,14 +89,34 @@ describe("paths and paths-ignore both set on one event", () => {
       "  b: {runs-on: ubuntu-latest, steps: [{run: echo}]}",
       "",
     ].join("\n");
-    // src/app.ts matches `paths`; if paths-ignore were applied, all files would
-    // be ignored and the workflow would skip. It fires -> paths won.
     const spec: PushSpec = { kind: "push", branch: "main", files: ["src/app.ts"] };
     const report = await evaluateWorkflows([file("p.yml", content)], spec);
     const w = report.workflows[0];
 
-    expect(w.verdict).toBe("fires");
-    expect(w.warnings.some((r) => r.code === "paths-and-paths-ignore")).toBe(true);
+    expect(w.verdict).toBe("error");
+    expect(w.reasons.map((r) => r.code)).toContain("invalid-filter-combination");
+  });
+
+  it.each([
+    ["branches", "branches-ignore", "branch"],
+    ["tags", "tags-ignore", "tag"],
+  ])("rejects %s together with %s", async (include, ignore, refKind) => {
+    const content = [
+      "on:",
+      "  push:",
+      `    ${include}: [main]`,
+      `    ${ignore}: [legacy]`,
+      "jobs:",
+      "  b: {runs-on: ubuntu-latest, steps: [{run: echo}]}",
+      "",
+    ].join("\n");
+    const spec: PushSpec =
+      refKind === "tag"
+        ? { kind: "push", tag: "main", files: ["src/app.ts"] }
+        : { kind: "push", branch: "main", files: ["src/app.ts"] };
+    const w = (await evaluateWorkflows([file("p.yml", content)], spec)).workflows[0];
+    expect(w.verdict).toBe("error");
+    expect(w.reasons.map((r) => r.code)).toContain("invalid-filter-combination");
   });
 });
 
