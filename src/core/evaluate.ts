@@ -416,7 +416,10 @@ function explainCondition(expression: string, outcome: EvalOutcome): string {
 }
 
 function evaluateStep(step: StepLike, index: number, jobContext: RootContext): StepVerdict {
-  const name = step.name?.toString() ?? step.id ?? `step ${index + 1}`;
+  // The parser synthesizes ids like "__run" for anonymous steps — not
+  // useful as labels.
+  const syntheticId = !step.id || step.id.startsWith("__");
+  const name = step.name?.toString() ?? (syntheticId ? `step ${index + 1}` : step.id);
   const expression = step.if?.expression ?? "success()";
   // Step-level: env IS available; matrix/steps contexts stay unknown.
   const stepContext: RootContext = { ...jobContext };

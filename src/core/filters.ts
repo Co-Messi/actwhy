@@ -207,7 +207,7 @@ function checkPathFilters(
           {
             code: "paths-filter-no-match",
             message: `paths filter ${quote(paths)} matches none of the ${files.length} changed file${files.length === 1 ? "" : "s"}`,
-            detail: files.length <= 6 ? `changed: ${files.join(", ")}` : undefined,
+            detail: files.length > 0 && files.length <= 6 ? `changed: ${files.join(", ")}` : undefined,
           },
         ],
         warnings,
