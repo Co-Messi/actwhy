@@ -67,7 +67,7 @@ export interface ChangedFiles {
   /** Human label, e.g. "vs upstream origin/main" or "last commit only (no upstream)". */
   source: string;
   /** Whether the inferred upstream range contains a push event to simulate. */
-  hasOutgoingCommits: boolean;
+  hasOutgoingCommits?: boolean;
 }
 
 /**
@@ -85,13 +85,14 @@ export function changedFilesForPush(dir: string): ChangedFiles | null {
     const out = git(["diff", "--name-only", "@{push}..HEAD"], dir);
     if (out !== null) {
       const files = uniqLines(out);
-      if (files.length > 0) {
-        return { files, source: `vs upstream ${pushName}`, hasOutgoingCommits: true };
-      }
+      const hasOutgoingCommits = outgoingCommitStatus("@{push}", dir);
       return {
-        files: [],
-        source: `no outgoing commits (in sync with ${pushName})`,
-        hasOutgoingCommits: false,
+        files,
+        source:
+          hasOutgoingCommits === false
+            ? `no outgoing commits relative to ${pushName}`
+            : `vs upstream ${pushName}`,
+        ...(hasOutgoingCommits !== undefined ? { hasOutgoingCommits } : {}),
       };
     }
   }
@@ -101,13 +102,14 @@ export function changedFilesForPush(dir: string): ChangedFiles | null {
     const out = git(["diff", "--name-only", "@{u}..HEAD"], dir);
     if (out !== null) {
       const files = uniqLines(out);
-      if (files.length > 0) {
-        return { files, source: `vs upstream ${upName}`, hasOutgoingCommits: true };
-      }
+      const hasOutgoingCommits = outgoingCommitStatus("@{u}", dir);
       return {
-        files: [],
-        source: `no outgoing commits (in sync with ${upName})`,
-        hasOutgoingCommits: false,
+        files,
+        source:
+          hasOutgoingCommits === false
+            ? `no outgoing commits relative to ${upName}`
+            : `vs upstream ${upName}`,
+        ...(hasOutgoingCommits !== undefined ? { hasOutgoingCommits } : {}),
       };
     }
   }
@@ -127,6 +129,13 @@ export function changedFilesForPush(dir: string): ChangedFiles | null {
   }
 
   return null;
+}
+
+/** Whether `<upstream>..HEAD` contains commits, independent of its net file diff. */
+function outgoingCommitStatus(upstream: string, dir: string): boolean | undefined {
+  const raw = git(["rev-list", "--count", `${upstream}..HEAD`], dir);
+  if (raw === null || !/^\d+$/.test(raw)) return undefined;
+  return Number(raw) > 0;
 }
 
 function lastCommitFiles(dir: string, source: string): ChangedFiles | null {
