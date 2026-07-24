@@ -66,6 +66,8 @@ export interface ChangedFiles {
   files: string[];
   /** Human label, e.g. "vs upstream origin/main" or "last commit only (no upstream)". */
   source: string;
+  /** Whether the inferred upstream range contains a push event to simulate. */
+  hasOutgoingCommits: boolean;
 }
 
 /**
@@ -83,8 +85,14 @@ export function changedFilesForPush(dir: string): ChangedFiles | null {
     const out = git(["diff", "--name-only", "@{push}..HEAD"], dir);
     if (out !== null) {
       const files = uniqLines(out);
-      if (files.length > 0) return { files, source: `vs upstream ${pushName}` };
-      return { files: [], source: `no outgoing commits (in sync with ${pushName})` };
+      if (files.length > 0) {
+        return { files, source: `vs upstream ${pushName}`, hasOutgoingCommits: true };
+      }
+      return {
+        files: [],
+        source: `no outgoing commits (in sync with ${pushName})`,
+        hasOutgoingCommits: false,
+      };
     }
   }
 
@@ -93,8 +101,14 @@ export function changedFilesForPush(dir: string): ChangedFiles | null {
     const out = git(["diff", "--name-only", "@{u}..HEAD"], dir);
     if (out !== null) {
       const files = uniqLines(out);
-      if (files.length > 0) return { files, source: `vs upstream ${upName}` };
-      return { files: [], source: `no outgoing commits (in sync with ${upName})` };
+      if (files.length > 0) {
+        return { files, source: `vs upstream ${upName}`, hasOutgoingCommits: true };
+      }
+      return {
+        files: [],
+        source: `no outgoing commits (in sync with ${upName})`,
+        hasOutgoingCommits: false,
+      };
     }
   }
 
@@ -104,7 +118,13 @@ export function changedFilesForPush(dir: string): ChangedFiles | null {
 
   // Single-commit repo: HEAD has no parent, so show HEAD's own files.
   const out = git(["show", "--name-only", "--format=", "HEAD"], dir);
-  if (out !== null) return { files: uniqLines(out), source: "first commit (all files)" };
+  if (out !== null) {
+    return {
+      files: uniqLines(out),
+      source: "first commit (all files)",
+      hasOutgoingCommits: true,
+    };
+  }
 
   return null;
 }
@@ -114,7 +134,7 @@ function lastCommitFiles(dir: string, source: string): ChangedFiles | null {
   if (hasParent === null) return null;
   const out = git(["diff", "--name-only", "HEAD~1..HEAD"], dir);
   if (out === null) return null;
-  return { files: uniqLines(out), source };
+  return { files: uniqLines(out), source, hasOutgoingCommits: true };
 }
 
 /** Result of inferring a PR's changed files; `files` is null when it can't be diffed. */

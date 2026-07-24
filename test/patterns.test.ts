@@ -45,6 +45,12 @@ describe("compilePattern — `**` (crosses `/`)", () => {
     expect(matches("a/**/b", "a/x/y/b")).toBe(true);
     expect(matches("a/**/b", "a/xb")).toBe(false);
   });
+
+  it("does not absorb the slash after a non-delimited globstar", () => {
+    expect(matches("foo**/bar", "foobar")).toBe(false);
+    expect(matches("foo**/bar", "foo/bar")).toBe(true);
+    expect(matches("foo**/bar", "foo/x/bar")).toBe(true);
+  });
 });
 
 describe("compilePattern — `?` is ZERO OR ONE of the preceding char (regex-style)", () => {

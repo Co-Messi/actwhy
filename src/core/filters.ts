@@ -66,6 +66,14 @@ export function evaluateTrigger(events: EventsConfig, spec: EventSpec): TriggerR
       ["paths", paths, "paths-ignore", pathsIgnore],
     ]);
     if (invalidPair) return error([invalidPair]);
+    if (spec.hasOutgoingCommits === false) {
+      return skip([
+        {
+          code: "no-outgoing-commits",
+          message: "the current branch has no outgoing commits, so no push event will occur",
+        },
+      ]);
+    }
     if (hasCommitSkipDirective(spec.commitMessage)) {
       return skip([commitSkipReason()]);
     }

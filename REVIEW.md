@@ -50,7 +50,7 @@ was fixed, and what remains — honestly.
   stay `UNKNOWN` by design.
 - Step-level `env:` is not evaluated; matrix-dependent step conditions
   report `UNKNOWN`.
-- GitHub's >1,000-commit/diff-timeout fallback and 300-file path-filter window
+- GitHub's >1,000-commit/diff-timeout fallback and 3,000-file path-filter window
   are not modeled (documented).
 - The web playground share-link format has no versioning guarantee yet.
 

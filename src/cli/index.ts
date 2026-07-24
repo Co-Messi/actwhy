@@ -229,6 +229,7 @@ async function run(): Promise<number> {
     }
 
     let pushFiles: string[] | null;
+    let hasOutgoingCommits: boolean | undefined;
     if (filesFlag !== undefined) {
       pushFiles = filesFlag;
       filesSource = "from --files";
@@ -237,6 +238,9 @@ async function run(): Promise<number> {
       if (inferred) {
         pushFiles = inferred.files;
         filesSource = inferred.source;
+        if (branchFlag === undefined && tagFlag === undefined) {
+          hasOutgoingCommits = inferred.hasOutgoingCommits;
+        }
       } else {
         pushFiles = null;
         notes.push("could not infer changed files from git — paths filters will be UNKNOWN (pass --files)");
@@ -250,6 +254,7 @@ async function run(): Promise<number> {
       ...(branch !== undefined ? { branch } : {}),
       ...(tag !== undefined ? { tag } : {}),
       files: pushFiles,
+      ...(hasOutgoingCommits !== undefined ? { hasOutgoingCommits } : {}),
       ...(commitMessage !== undefined ? { commitMessage } : {}),
       ...(repository !== undefined ? { repository } : {}),
       ...(defaultBranch !== undefined ? { defaultBranch } : {}),

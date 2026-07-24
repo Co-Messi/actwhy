@@ -36,6 +36,14 @@ jobs:
     steps: [{run: echo build}]
 `;
 
+const UNFILTERED_YAML = `name: Unfiltered
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps: [{run: echo build}]
+`;
+
 // c1's changed-file set (both the outgoing diff in (a) and the last-commit
 // fallback in (b)). src/app.ts makes the paths:['src/**'] filter match.
 const C1_FILES = ["CHANGELOG.md", "src/app.ts"];
@@ -91,6 +99,10 @@ function makeRepo(name: string, pushC1: boolean): string {
   // c0: base file + workflow
   writeFileSync(join(repo, "README.md"), "# base\n");
   writeFileSync(join(repo, ".github", "workflows", "ci.yml"), CI_YAML);
+  writeFileSync(
+    join(repo, ".github", "workflows", "unfiltered.yml"),
+    UNFILTERED_YAML,
+  );
   g(["add", "-A"], repo);
   g(["commit", "--no-verify", "-m", "c0: base"], repo);
   g(["remote", "add", "origin", bare], repo);
@@ -146,8 +158,8 @@ describe("git changed-file inference for push", () => {
     const jsonFiles = (report.event as { files: string[] | null }).files ?? [];
     expect([...jsonFiles].sort()).toEqual([...C1_FILES].sort());
 
-    // the outgoing paths-matching file makes the workflow fire
-    expect(report.workflows[0].verdict).toBe("fires");
+    // the outgoing paths-matching file makes both workflows fire
+    expect(report.workflows.every((workflow) => workflow.verdict === "fires")).toBe(true);
     expect(report.nothingFires).toBe(false);
 
     // human header: "<n> changed files (vs upstream …)" — n must equal JSON's count
@@ -162,12 +174,21 @@ describe("git changed-file inference for push", () => {
     const json = await runCli(["push", "-C", repoInSync, "--json"], repoInSync);
     expect(json.code).toBe(0);
     const report = JSON.parse(json.stdout) as Report;
-    const files = (report.event as { files: string[] | null }).files ?? [];
+    const event = report.event as {
+      files: string[] | null;
+      hasOutgoingCommits?: boolean;
+    };
+    const files = event.files ?? [];
 
     expect(files).toEqual([]);
+    expect(event.hasOutgoingCommits).toBe(false);
     expect(report.nothingFires).toBe(true);
-    expect(report.workflows[0].verdict).toBe("skipped");
-    expect(report.workflows[0].reasons[0].code).toBe("no-changed-files");
+    expect(report.workflows.every((workflow) => workflow.verdict === "skipped")).toBe(true);
+    expect(
+      report.workflows.every((workflow) =>
+        workflow.reasons.some((reason) => reason.code === "no-outgoing-commits"),
+      ),
+    ).toBe(true);
 
     const human = await runCli(["push", "-C", repoInSync], repoInSync);
     expect(human.stdout).toContain("no outgoing commits");

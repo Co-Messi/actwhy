@@ -16,6 +16,11 @@ export interface PushSpec {
    * yield UNKNOWN verdicts instead of guessing.
    */
   files: string[] | null;
+  /**
+   * False only when zero-config git inference proves the current branch has
+   * no commits to push. Omitted for explicit simulations.
+   */
+  hasOutgoingCommits?: boolean;
   commitMessage?: string;
   /** "owner/repo", used for the github.repository context when known. */
   repository?: string;

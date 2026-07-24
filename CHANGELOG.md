@@ -53,7 +53,7 @@ Initial release.
 
 - `schedule`, `merge_group`, `workflow_run`, and `workflow_call` are classified but not evaluated.
 - Concurrency is not modeled; step-level `env:` is not evaluated; verdicts assume runs succeed.
-- GitHub's >1,000-commit/diff-timeout fallback and 300-file path-filter window are not modeled.
+- GitHub's >1,000-commit/diff-timeout fallback and 3,000-file path-filter window are not modeled.
 
 See [docs/limitations.md](docs/limitations.md) for the full list and what actwhy reports in each case.
 

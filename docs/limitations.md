@@ -87,11 +87,11 @@ By default actwhy always exits `0` — a skipped or nothing-fires result is info
 
 ## Paths filters on large diffs
 
-GitHub always runs a workflow when it cannot generate the diff because the push contains **more than 1,000 commits** or diff generation times out. Separately, GitHub evaluates path filters against only the first **300 changed files** returned by the diff.
+GitHub always runs a workflow when it cannot generate the diff because the push contains **more than 1,000 commits** or diff generation times out. Separately, GitHub evaluates path filters against only the first **3,000 changed files** returned by the diff.
 
-actwhy does not know whether GitHub's diff timed out and does not truncate an explicitly supplied file list to 300 entries.
+actwhy does not know whether GitHub's diff timed out and does not truncate an explicitly supplied file list to 3,000 entries.
 
-**What actwhy says instead of guessing:** actwhy evaluates the complete changed-file list it receives. For pushes above 1,000 commits, timed-out diffs, or cases where a relevant path may fall beyond GitHub's 300-file window, compare the verdict with these documented GitHub limits.
+**What actwhy says instead of guessing:** actwhy evaluates the complete changed-file list it receives. For pushes above 1,000 commits, timed-out diffs, or cases where a relevant path may fall beyond GitHub's 3,000-file window, compare the verdict with these documented GitHub limits.
 
 ## Fidelity
 

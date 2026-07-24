@@ -102,12 +102,15 @@ function parseAtoms(pattern: string, original: string): Atom[] {
   while (i < pattern.length) {
     const c = pattern[i];
     if (c === "*") {
+      const starStart = i;
       let stars = 0;
       while (pattern[i] === "*") {
         stars++;
         i++;
       }
-      if (stars >= 2 && pattern[i] === "/") {
+      const startsPathSegment =
+        starStart === 0 || pattern[starStart - 1] === "/";
+      if (stars >= 2 && startsPathSegment && pattern[i] === "/") {
         atoms.push({ test: ANY, quant: "*", directoryGlobstar: true });
         i++;
         continue;
