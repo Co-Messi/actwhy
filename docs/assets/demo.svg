@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="430" viewBox="0 0 820 430">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#161b22"/>
+      <stop offset="1" stop-color="#0d1117"/>
+    </linearGradient>
+  </defs>
+  <rect width="820" height="430" fill="#010409"/>
+  <rect x="20" y="16" width="780" height="398" rx="12" fill="url(#bg)" stroke="#30363d" stroke-width="1"/>
+  <circle cx="48" cy="44" r="6" fill="#ff5f57"/>
+  <circle cx="70" cy="44" r="6" fill="#febc2e"/>
+  <circle cx="92" cy="44" r="6" fill="#28c840"/>
+  <text x="410" y="49" font-family="Menlo, Consolas, monospace" font-size="13" fill="#8b949e" text-anchor="middle">~/my-repo</text>
+  <g font-family="Menlo, Consolas, monospace" font-size="14.5" xml:space="preserve">
+    <text x="48" y="92"><tspan fill="#8b949e">$ </tspan><tspan fill="#e6edf3">npx actwhy</tspan></text>
+    <text x="48" y="122"><tspan fill="#58a6ff">actwhy</tspan><tspan fill="#8b949e"> · simulating push → branch </tspan><tspan fill="#e6edf3">main</tspan><tspan fill="#8b949e"> · 2 changed files (last commit only)</tspan></text>
+    <text x="48" y="158"><tspan fill="#3fb950">✔ ci.yml — FIRES</tspan></text>
+    <text x="48" y="184"><tspan fill="#e6edf3">  </tspan><tspan fill="#3fb950">✔</tspan><tspan fill="#e6edf3"> build       runs   </tspan><tspan fill="#8b949e">(matrix: 5 variants)</tspan></text>
+    <text x="48" y="210"><tspan fill="#e6edf3">  </tspan><tspan fill="#3fb950">✔</tspan><tspan fill="#e6edf3"> test        runs   </tspan><tspan fill="#8b949e">(needs: build)</tspan></text>
+    <text x="48" y="236"><tspan fill="#e6edf3">  </tspan><tspan fill="#3fb950">✔</tspan><tspan fill="#e6edf3"> deploy      runs   </tspan><tspan fill="#8b949e">(needs: test)</tspan></text>
+    <text x="48" y="262"><tspan fill="#e6edf3">  </tspan><tspan fill="#d29922">?</tspan><tspan fill="#e6edf3"> vars-gated  </tspan><tspan fill="#d29922">unknown</tspan><tspan fill="#8b949e"> — depends on vars.DEPLOY_ENV</tspan></text>
+    <text x="48" y="286"><tspan fill="#8b949e">      vars.DEPLOY_ENV: repository/organization variables are not readable locally</tspan></text>
+    <text x="48" y="316"><tspan fill="#3fb950">✔ docs.yml — FIRES</tspan></text>
+    <text x="48" y="342"><tspan fill="#e6edf3">  </tspan><tspan fill="#3fb950">✔</tspan><tspan fill="#e6edf3"> docs  runs</tspan></text>
+    <text x="48" y="368"><tspan fill="#8b949e">? manual.yml — not for this event · only runs when manually dispatched</tspan></text>
+    <text x="48" y="400"><tspan fill="#e6edf3">2 of 3 workflows fire · 4 jobs run (8 matrix variants) · 1 skipped</tspan></text>
+  </g>
+</svg>

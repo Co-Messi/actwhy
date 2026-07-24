@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="360" viewBox="0 0 820 360">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#161b22"/>
+      <stop offset="1" stop-color="#0d1117"/>
+    </linearGradient>
+  </defs>
+  <rect width="820" height="360" fill="#010409"/>
+  <rect x="20" y="16" width="780" height="328" rx="12" fill="url(#bg)" stroke="#30363d" stroke-width="1"/>
+  <circle cx="48" cy="44" r="6" fill="#ff5f57"/>
+  <circle cx="70" cy="44" r="6" fill="#febc2e"/>
+  <circle cx="92" cy="44" r="6" fill="#28c840"/>
+  <text x="410" y="49" font-family="Menlo, Consolas, monospace" font-size="13" fill="#8b949e" text-anchor="middle">~/my-repo</text>
+  <g font-family="Menlo, Consolas, monospace" font-size="14.5" xml:space="preserve">
+    <text x="48" y="92"><tspan fill="#8b949e">$ </tspan><tspan fill="#e6edf3">npx actwhy push -b feat/login --files docs/x.md</tspan></text>
+    <text x="48" y="122"><tspan fill="#58a6ff">actwhy</tspan><tspan fill="#8b949e"> · simulating push → branch </tspan><tspan fill="#e6edf3">feat/login</tspan><tspan fill="#8b949e"> · 1 changed file (from --files)</tspan></text>
+    <text x="48" y="158"><tspan fill="#f85149">✘ ci.yml — skipped</tspan></text>
+    <text x="48" y="182"><tspan fill="#8b949e">    branch filter ["main", "releases/**"] does not match "feat/login"</tspan></text>
+    <text x="48" y="208"><tspan fill="#f85149">✘ docs.yml — skipped</tspan></text>
+    <text x="48" y="232"><tspan fill="#8b949e">    branch filter ["main"] does not match "feat/login"</tspan></text>
+    <text x="48" y="258"><tspan fill="#8b949e">? manual.yml — not for this event · only runs when manually dispatched</tspan></text>
+    <text x="48" y="294"><tspan fill="#f85149">⚠ NOTHING fires for this push.</tspan></text>
+    <text x="48" y="318"><tspan fill="#e6edf3">closest miss: ci.yml — branch filter ["main", "releases/**"] does not match "feat/login"</tspan></text>
+  </g>
+</svg>

@@ -136,6 +136,20 @@ Simulate a pull request against a base branch.
 
 For the precise boundaries of v0.1 — which events are evaluated versus classified, and what actwhy reports instead of guessing — see **[docs/limitations.md](docs/limitations.md)**.
 
+## Verified against real GitHub
+
+Before release, we pushed 12 crafted workflows and 13 ref events (commits with
+disjoint changed-file sets, seven branches probing the pattern grammar, one tag)
+to a scratch GitHub repository and recorded which workflows GitHub actually ran.
+**All 25 workflow-level trigger decisions and all 3 job-level `if:` decisions
+matched actwhy's predictions** — including the `?`/`+` quantifier semantics,
+`!` negation re-includes, `paths-ignore`'s all-files rule, tag-push versus
+branch-filter interplay, and the always-true `if:` footgun (GitHub really does
+run that job). The raw Actions API data and the case-by-case table live in
+[`test/golden/`](test/golden/README.md). Found a case where actwhy disagrees
+with GitHub? That's a P1 bug — please file a
+[fidelity report](.github/ISSUE_TEMPLATE/fidelity_report.yml).
+
 ## Playground
 
 The [web playground](https://actwhy.vercel.app) runs the exact same core, compiled for the browser. Paste a workflow, choose an event (push or pull request), set a branch and changed files, and see the verdict tree live — including the always-true `if:` footgun warning. It is fully static and client-side: nothing you paste leaves your browser.
