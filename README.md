@@ -1,10 +1,17 @@
-# actwhy
+<p align="center">
+  <img src="docs/assets/logo.png" alt="actwhy" width="640">
+</p>
 
-**Know which GitHub Actions workflows will fire — and exactly why the others won't — before you push.**
+<h1 align="center">actwhy</h1>
 
-[![CI](https://github.com/Co-Messi/actwhy/actions/workflows/ci.yml/badge.svg)](https://github.com/Co-Messi/actwhy/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
+<p align="center"><strong>Know which GitHub Actions workflows will fire — and exactly why the others won't — before you push.</strong></p>
+
+<p align="center">
+  <a href="https://github.com/Co-Messi/actwhy/actions/workflows/ci.yml"><img src="https://github.com/Co-Messi/actwhy/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://www.npmjs.com/package/actwhy"><img src="https://img.shields.io/npm/v/actwhy.svg" alt="npm"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg" alt="Node >= 20"></a>
+</p>
 
 `act` executes your workflows (heavy, needs Docker, breaks on runner mismatches). `actionlint` lints their syntax. GitHub's own UI only explains what fired *after* you push. **actwhy** answers a different question — *for this exact push or PR, which workflows fire, which are skipped and by which filter, and which can't be decided offline* — statically, instantly, and with zero network calls.
 
