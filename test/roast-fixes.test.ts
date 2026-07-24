@@ -78,7 +78,7 @@ describe("matrix over-limit error (GitHub's 256-job cap)", () => {
 // ── paths + paths-ignore both set ───────────────────────────────────────────
 
 describe("paths and paths-ignore both set on one event", () => {
-  it("warns and follows `paths` (paths-ignore dropped, matching GitHub)", async () => {
+  it("reports an error instead of guessing which mutually exclusive filter wins", async () => {
     const content = [
       "on:",
       "  push:",
@@ -89,14 +89,34 @@ describe("paths and paths-ignore both set on one event", () => {
       "  b: {runs-on: ubuntu-latest, steps: [{run: echo}]}",
       "",
     ].join("\n");
-    // src/app.ts matches `paths`; if paths-ignore were applied, all files would
-    // be ignored and the workflow would skip. It fires -> paths won.
     const spec: PushSpec = { kind: "push", branch: "main", files: ["src/app.ts"] };
     const report = await evaluateWorkflows([file("p.yml", content)], spec);
     const w = report.workflows[0];
 
-    expect(w.verdict).toBe("fires");
-    expect(w.warnings.some((r) => r.code === "paths-and-paths-ignore")).toBe(true);
+    expect(w.verdict).toBe("error");
+    expect(w.reasons.map((r) => r.code)).toContain("invalid-filter-combination");
+  });
+
+  it.each([
+    ["branches", "branches-ignore", "branch"],
+    ["tags", "tags-ignore", "tag"],
+  ])("rejects %s together with %s", async (include, ignore, refKind) => {
+    const content = [
+      "on:",
+      "  push:",
+      `    ${include}: [main]`,
+      `    ${ignore}: [legacy]`,
+      "jobs:",
+      "  b: {runs-on: ubuntu-latest, steps: [{run: echo}]}",
+      "",
+    ].join("\n");
+    const spec: PushSpec =
+      refKind === "tag"
+        ? { kind: "push", tag: "main", files: ["src/app.ts"] }
+        : { kind: "push", branch: "main", files: ["src/app.ts"] };
+    const w = (await evaluateWorkflows([file("p.yml", content)], spec)).workflows[0];
+    expect(w.verdict).toBe("error");
+    expect(w.reasons.map((r) => r.code)).toContain("invalid-filter-combination");
   });
 });
 

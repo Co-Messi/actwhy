@@ -4,12 +4,9 @@
  * (a) When local `main` is AHEAD of `origin/main`, the CLI must simulate the
  *     OUTGOING commit's files — and the human header count must agree with the
  *     JSON `event.files`.
- * (b) When the branch is IN SYNC (0 outgoing), the DOCUMENTED post-fix
- *     behavior is to fall back to the LAST commit's files (HEAD~1..HEAD) so a
- *     paths-filtered workflow still fires instead of spuriously reporting
- *     "nothing fires" from an empty file set. If that fallback isn't in the
- *     build yet (a concurrent fix), scenario (b) skips itself at runtime
- *     rather than asserting the current buggy empty-set behavior.
+ * (b) When the branch is IN SYNC (0 outgoing), the CLI must report a known
+ *     empty outgoing set. It must not quietly substitute the last commit and
+ *     claim that a future push contains already-pushed files.
  *
  * The CLI is bundled to a PRIVATE temp path (see e2e-event) to avoid a
  * parallel-worker race on the shared dist/actwhy.js. Git setup is hermetic:
@@ -161,23 +158,18 @@ describe("git changed-file inference for push", () => {
     expect(Number(m![1])).toBe(jsonFiles.length);
   }, 30_000);
 
-  it("(b) IN SYNC (0 outgoing) → falls back to the last commit's files (post-fix behavior)", async (ctx) => {
+  it("(b) IN SYNC (0 outgoing) → reports an explicit empty outgoing set", async () => {
     const json = await runCli(["push", "-C", repoInSync, "--json"], repoInSync);
     expect(json.code).toBe(0);
     const report = JSON.parse(json.stdout) as Report;
     const files = (report.event as { files: string[] | null }).files ?? [];
 
-    if (!Array.isArray(files) || files.length === 0) {
-      // Fallback not present in this build (concurrent fix pending): the
-      // in-sync diff is empty. Skip rather than asserting the buggy empty set.
-      // TODO(git.ts): when @{push}..HEAD is empty, fall back to HEAD~1..HEAD.
-      ctx.skip();
-      return;
-    }
+    expect(files).toEqual([]);
+    expect(report.nothingFires).toBe(true);
+    expect(report.workflows[0].verdict).toBe("skipped");
+    expect(report.workflows[0].reasons[0].code).toBe("no-changed-files");
 
-    // Post-fix: last commit's files, and NOT a spurious nothing-fires.
-    expect([...files].sort()).toEqual([...C1_FILES].sort());
-    expect(report.nothingFires).toBe(false);
-    expect(report.workflows[0].verdict).toBe("fires");
+    const human = await runCli(["push", "-C", repoInSync], repoInSync);
+    expect(human.stdout).toContain("no outgoing commits");
   }, 30_000);
 });

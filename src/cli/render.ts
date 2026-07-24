@@ -162,7 +162,8 @@ function header(event: EventSpec, opts: RenderOptions, c: Colors): string {
   if (filesCount === null) {
     filesDesc = "changed files unknown";
   } else if (filesCount === 0) {
-    filesDesc = "0 changed files";
+    const src = opts.filesSource ? ` (${opts.filesSource})` : "";
+    filesDesc = `0 changed files${src}`;
   } else {
     const src = opts.filesSource ? ` (${opts.filesSource})` : "";
     filesDesc = `${filesCount} changed file${filesCount === 1 ? "" : "s"}${src}`;

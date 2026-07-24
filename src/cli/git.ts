@@ -83,11 +83,8 @@ export function changedFilesForPush(dir: string): ChangedFiles | null {
     const out = git(["diff", "--name-only", "@{push}..HEAD"], dir);
     if (out !== null) {
       const files = uniqLines(out);
-      // In-sync branch (0 outgoing commits): an empty set would produce a
-      // false "NOTHING fires". The question the user is asking is "what did
-      // my last push trigger?" — simulate the last commit instead.
       if (files.length > 0) return { files, source: `vs upstream ${pushName}` };
-      return lastCommitFiles(dir, `in sync with ${pushName} — simulating the last commit's push`) ?? { files, source: `vs upstream ${pushName}` };
+      return { files: [], source: `no outgoing commits (in sync with ${pushName})` };
     }
   }
 
@@ -97,7 +94,7 @@ export function changedFilesForPush(dir: string): ChangedFiles | null {
     if (out !== null) {
       const files = uniqLines(out);
       if (files.length > 0) return { files, source: `vs upstream ${upName}` };
-      return lastCommitFiles(dir, `in sync with ${upName} — simulating the last commit's push`) ?? { files, source: `vs upstream ${upName}` };
+      return { files: [], source: `no outgoing commits (in sync with ${upName})` };
     }
   }
 
