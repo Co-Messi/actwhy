@@ -11,3 +11,4 @@ coverage/
 .smoke/
 .gstack/
 .internal/
+.vercel
