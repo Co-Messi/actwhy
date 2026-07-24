@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Try actwhy in the browser
+    url: https://actwhy.vercel.app
+    about: Reproduce your case in the playground first — paste the workflow, pick the event, and see the verdicts.
+  - name: Documentation and limitations
+    url: https://github.com/Co-Messi/actwhy/blob/main/docs/limitations.md
+    about: Check what v0.1 evaluates versus classifies before filing — it may already be a known boundary.

@@ -1,0 +1,59 @@
+name: Fidelity report
+description: actwhy's verdict disagrees with what GitHub actually did.
+title: "[fidelity]: "
+labels:
+  - fidelity
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fidelity is the whole point of actwhy, so these reports are the most valuable kind we can get.
+        A good report lets us reproduce the divergence and turn it into a test. Thank you.
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow YAML
+      description: The (ideally minimal) `.github/workflows/*.yml` that triggers the divergence.
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: event
+    attributes:
+      label: Event simulated
+      description: The exact actwhy command and event — branch/tag, changed files, PR base/head, etc.
+      placeholder: |
+        actwhy push -b feat/login -f "src/app.ts"
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: actwhy-said
+    attributes:
+      label: What actwhy said
+      description: Paste actwhy's output for this case (use `--json` if it helps).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: github-did
+    attributes:
+      label: What GitHub actually did
+      description: Did the workflow run or not? Which jobs? What did the run page show?
+    validations:
+      required: true
+  - type: input
+    id: run-link
+    attributes:
+      label: GitHub run link
+      description: A link to the actual Actions run (or the repo), so we can confirm the real behavior.
+      placeholder: https://github.com/owner/repo/actions/runs/123456789
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: actwhy version
+      placeholder: 0.1.0
+    validations:
+      required: true

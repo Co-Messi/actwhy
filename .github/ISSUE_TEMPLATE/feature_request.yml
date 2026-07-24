@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest an improvement or new capability for actwhy.
+title: "[feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. actwhy stays deliberately narrow (it simulates *trigger decisions*, it
+        does not execute or lint workflows), so the most useful requests explain the problem first.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: The situation you hit where actwhy could not help you.
+      placeholder: I wanted to know whether a scheduled workflow would fire tonight, but…
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should actwhy do? A sketch of the command, flag, or output is helpful.
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other tools or workarounds you tried, and why they fell short.
+    validations:
+      required: false
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This is about simulating trigger decisions, not executing workflows (that is `act`) or linting syntax (that is `actionlint`).
+          required: false
