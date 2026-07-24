@@ -96,6 +96,16 @@ function renderTabs(): void {
         setActive(idx);
       } else if (e.key === "F2") {
         beginRename(tab, label, idx);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        // Roving tabindex: arrows move selection per the WAI-ARIA tabs pattern.
+        e.preventDefault();
+        const n = state.files.length;
+        const next = (idx + (e.key === "ArrowRight" ? 1 : n - 1)) % n;
+        setActive(next);
+        (tabsEl.querySelectorAll('[role="tab"]')[next] as HTMLElement | undefined)?.focus();
+      } else if (e.key === "Delete" && state.files.length > 1) {
+        e.preventDefault();
+        removeFile(idx);
       }
     });
 

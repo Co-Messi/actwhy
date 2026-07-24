@@ -33,7 +33,9 @@ Scheduled and reusable-workflow evaluation are on the [roadmap](../README.md#roa
 
 Some values simply do not exist until a workflow runs — most importantly `secrets.*` and `needs.<job>.outputs.*`. actwhy cannot and does not read secrets.
 
-**What actwhy says instead of guessing:** any verdict that genuinely depends on such a value becomes `UNKNOWN`, naming the exact value it lacks. Thanks to three-valued (Kleene) logic, this only happens when the value actually decides the outcome — `secrets.TOKEN != '' && false` is still a decisive `SKIPPED`. To resolve a real `UNKNOWN`, supply a payload with `--event payload.json`.
+**What actwhy says instead of guessing:** any verdict that genuinely depends on such a value becomes `UNKNOWN`, naming the exact value it lacks. Thanks to three-valued (Kleene) logic, this only happens when the value actually decides the outcome — a step condition like `secrets.TOKEN != '' && false` is still a decisive `SKIPPED`, because no possible value of the secret changes the result. (Note that GitHub does not allow `secrets` in *job-level* `if:` at all — actwhy reports that as the parse error GitHub itself would raise.)
+
+`--event payload.json` fills in **event payload** values (`github.event.*`) — a PR title, `forced`, `head_commit` details. It cannot supply `secrets.*`, `vars.*`, or `needs.*.outputs.*`; those stay honestly `UNKNOWN` by design.
 
 ### The always-true `if:` footgun
 

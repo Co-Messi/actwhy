@@ -196,6 +196,18 @@ export function renderReport(report: Report, mount: HTMLElement): void {
   const banner = bannerNode(report);
   if (banner) mount.append(banner);
 
+  // Announce a one-line summary instead of the whole rebuilt tree — a
+  // full-subtree aria-live region re-reads everything on each keystroke.
+  const status = document.getElementById("results-status");
+  if (status) {
+    const parts = [`${s.workflowsFiring} of ${s.workflowsTotal} workflows fire`];
+    if (s.workflowsSkipped > 0) parts.push(`${s.workflowsSkipped} skipped`);
+    if (s.workflowsUnknown > 0) parts.push(`${s.workflowsUnknown} unknown`);
+    if (s.workflowsError > 0) parts.push(`${s.workflowsError} invalid`);
+    if (report.nothingFires) parts.push("nothing fires for this event");
+    status.textContent = parts.join(", ");
+  }
+
   const list = el("div", { class: "wf-list" });
   for (const wf of report.workflows) list.append(workflowNode(wf));
   mount.append(list);

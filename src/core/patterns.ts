@@ -65,6 +65,10 @@ export function compilePattern(pattern: string): CompiledPattern {
       if (lastAtom === null) {
         // No preceding atom — GitHub treats this as a literal character.
         lastAtom = escapeChar(c);
+      } else if (lastAtom === "[^/]*" || lastAtom === ".*") {
+        // Quantifying a star atom doesn't change the language (`*+` ≡ `*`)
+        // but nesting quantifiers invites catastrophic backtracking.
+        // Keep the atom as-is.
       } else {
         lastAtom = `(?:${lastAtom})${c === "?" ? "?" : "+"}`;
       }

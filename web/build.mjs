@@ -26,7 +26,8 @@ const result = await build({
   target: "es2020",
   minify: true,
   sourcemap: false,
-  legalComments: "none",
+  // Keep dependency license notices in the shipped bundle (MIT requires it).
+  legalComments: "eof",
   outfile: join(dist, "app.js"),
   alias: {
     process: shim("process.js"),

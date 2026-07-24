@@ -77,15 +77,32 @@ function colorEnabled(noColorFlag: boolean): boolean {
 async function run(): Promise<number> {
   const argv = process.argv.slice(2);
 
-  // Peel the subcommand. A leading `push`/`pr` selects it; a leading flag
-  // keeps the default (push); a leading non-flag token is an unknown command.
+  // Peel the subcommand wherever it appears (`actwhy -C repo push` is as
+  // valid as `actwhy push -C repo`). A lenient union-options pre-parse lets
+  // flag VALUES that look like subcommands (e.g. `-b push`) be consumed as
+  // values, so the first true positional reliably names the subcommand.
   let sub: Subcommand = "push";
   let rest = argv;
-  if (argv[0] === "push" || argv[0] === "pr") {
-    sub = argv[0];
-    rest = argv.slice(1);
-  } else if (argv[0] !== undefined && !argv[0].startsWith("-")) {
-    return usage(`unknown command "${argv[0]}"`);
+  try {
+    const pre = parseArgs({
+      args: argv,
+      options: { ...PUSH_OPTS, ...PR_OPTS },
+      allowPositionals: true,
+      strict: false,
+      tokens: true,
+    });
+    const firstPositional = pre.tokens.find((t) => t.kind === "positional");
+    if (firstPositional) {
+      const word = argv[firstPositional.index];
+      if (word === "push" || word === "pr") {
+        sub = word;
+        rest = [...argv.slice(0, firstPositional.index), ...argv.slice(firstPositional.index + 1)];
+      } else {
+        return usage(`unknown command "${word}"`);
+      }
+    }
+  } catch {
+    // Fall through — the strict parse below reports the real error.
   }
 
   let values: Record<string, string | string[] | boolean | undefined>;

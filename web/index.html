@@ -34,7 +34,7 @@
     "operatingSystem": "Any",
     "description": "Know which GitHub Actions workflows will fire — and exactly why the others won't — before you push. A three-valued (fires / skipped / unknown) trigger explainer built on GitHub's own workflow parser.",
     "url": "https://actwhy.vercel.app",
-    "downloadUrl": "https://www.npmjs.com/package/actwhy",
+    "downloadUrl": "https://github.com/Co-Messi/actwhy",
     "softwareHelp": "https://github.com/Co-Messi/actwhy",
     "license": "https://opensource.org/licenses/MIT",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -112,6 +112,10 @@
       border-radius: 4px;
     }
 
+    .visually-hidden {
+      position: absolute; width: 1px; height: 1px; margin: -1px;
+      overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0;
+    }
     .skip-link {
       position: absolute; left: -999px; top: 0; z-index: 100;
       background: var(--accent); color: var(--accent-ink);
@@ -532,6 +536,7 @@
     </section>
 
     <section class="play" id="playground">
+      <h2 class="visually-hidden">Playground: simulate GitHub Actions triggers in your browser</h2>
       <div class="wrap play__grid">
         <!-- LEFT: editor + event controls -->
         <div class="panel" role="region" aria-label="Workflow editor and event controls">
@@ -622,18 +627,19 @@
             <span class="panel__label"><span class="hash">#</span> verdict</span>
             <span class="panel__label" style="color:var(--ink-faint)">re-evaluated live</span>
           </div>
-          <div class="results" id="results" aria-live="polite" aria-atomic="false"></div>
+          <p class="visually-hidden" id="results-status" role="status" aria-live="polite"></p>
+          <div class="results" id="results"></div>
         </div>
       </div>
     </section>
 
     <section class="band" id="why">
       <div class="wrap">
-        <h2 class="band__h">why it exists</h2>
+        <h2 class="band__h">Why didn't my GitHub Actions workflow run?</h2>
         <div class="benefits">
           <div class="benefit">
             <h3>Kill the <span class="k">push-debug-push</span> loop</h3>
-            <p>Stop committing “fix trigger 🙏”, pushing, waiting for the runner, and finding nothing ran. actwhy answers before you push — in milliseconds, offline.</p>
+            <p>Stop committing “fix trigger 🙏”, pushing, waiting for the runner, and finding nothing ran. Whether it's a <code>paths</code> filter that isn't matching, a <code>branches</code> pattern, or an <code>if:</code> condition — actwhy answers before you push, in milliseconds, offline.</p>
           </div>
           <div class="benefit">
             <h3>Three-valued <span class="k">honesty</span></h3>
@@ -649,7 +655,7 @@
 
     <section class="band" id="compare">
       <div class="wrap">
-        <h2 class="band__h">how it's different</h2>
+        <h2 class="band__h">How it compares to act and actionlint</h2>
         <div class="compare">
           <div class="cmp">
             <div class="cmp__name">act</div>
@@ -673,7 +679,7 @@
 
     <section class="band" id="install">
       <div class="wrap">
-        <h2 class="band__h">install</h2>
+        <h2 class="band__h">Install the CLI</h2>
         <div class="install-grid">
           <div class="install-cell">
             <span><span class="prompt" aria-hidden="true">$ </span><code>npx actwhy</code></span>
@@ -684,7 +690,7 @@
             <button class="copybtn" type="button" data-copy="npm i -g actwhy" aria-label="Copy npm i -g actwhy">copy</button>
           </div>
         </div>
-        <p style="margin:16px 0 0;color:var(--ink-dim);font-size:13px;">Point it at a repo and it reads <code>.github/workflows</code> directly, or pipe YAML on stdin. Same engine as this page.</p>
+        <p style="margin:16px 0 0;color:var(--ink-dim);font-size:13px;">Point it at a repo and it reads <code>.github/workflows</code> directly — zero configuration. Same engine as this page.</p>
       </div>
     </section>
   </main>
@@ -694,7 +700,7 @@
       <div class="foot__links">
         <span>MIT License</span>
         <a href="https://github.com/Co-Messi/actwhy" rel="noopener">GitHub</a>
-        <a href="https://www.npmjs.com/package/actwhy" rel="noopener">npm</a>
+        <a href="https://github.com/Co-Messi/actwhy/releases" rel="noopener">releases</a>
         <a href="https://github.com/Co-Messi/actwhy/issues/new?labels=fidelity&amp;title=Fidelity%20bug%3A%20" rel="noopener">Report a fidelity bug</a>
       </div>
       <div class="foot__built">Built on <a href="https://github.com/actions/languageservices" rel="noopener">@actions/workflow-parser</a> + @actions/expressions.</div>

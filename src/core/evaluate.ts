@@ -159,7 +159,26 @@ async function evaluateOne(
   }
 
   const name = workflowName(template);
-  const trigger = evaluateTrigger(template.events, spec);
+  let trigger: ReturnType<typeof evaluateTrigger>;
+  try {
+    trigger = evaluateTrigger(template.events, spec);
+  } catch (e) {
+    // A malformed filter pattern (unterminated `[`, trailing `\`, invalid
+    // range) must cost this one workflow its verdict — never the whole run.
+    return {
+      file: file.name,
+      name,
+      verdict: "error",
+      reasons: [
+        {
+          code: "invalid-filter-pattern",
+          message: `invalid filter pattern: ${e instanceof Error ? e.message : String(e)}`,
+        },
+      ],
+      jobs: [],
+      warnings: [],
+    };
+  }
   if (trigger.verdict !== "fires") {
     return {
       file: file.name,

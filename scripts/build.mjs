@@ -11,6 +11,8 @@ await build({
   target: "node20",
   outfile: "dist/actwhy.js",
   logLevel: "warning",
+  // Keep dependency license notices in the shipped bundle (MIT requires it).
+  legalComments: "eof",
   define: { ACTWHY_VERSION: JSON.stringify(version) },
   banner: {
     js: [

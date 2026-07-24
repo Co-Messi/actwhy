@@ -31,6 +31,9 @@ npx actwhy                       # infers branch + outgoing changed files from g
 npx actwhy pr --base main        # simulate the same changes as a pull request
 ```
 
+> **Not on npm yet?** Until the first npm release lands, install from source —
+> see [Installation](#30-second-quick-start) below.
+
 Or install it:
 
 ```bash
@@ -81,13 +84,17 @@ And the case above, where the closest miss is surfaced so you know which filter 
 
 actwhy does not replace any of these tools — it answers a question none of them answer before you push.
 
-| | actwhy | act | actionlint | GitHub post-push logs |
-|---|---|---|---|---|
-| Explains trigger decisions **before** you push | Yes | No | No | No — only after the push |
-| Executes workflows | No | Yes | No | Yes |
-| Lints workflow syntax | No | No | Yes | Surfaces some errors at run time |
-| Needs Docker | No | Yes | No | No (runs on GitHub's infrastructure) |
-| Works offline | Yes | Needs the Docker daemon; pulls runner images on first use | Yes | No |
+| | actwhy | act | wrkflw | actionlint | GitHub post-push logs |
+|---|---|---|---|---|---|
+| Explains **why** each workflow fires or skips, pre-push | Yes — quotes the exact filter/condition | No | Partially — validates and simulates execution, not per-filter explanations | No | No — only after the push |
+| Executes workflows | No | Yes | Yes (local runtime) | No | Yes |
+| Lints workflow syntax | No | No | Validates | Yes | Surfaces some errors at run time |
+| Needs Docker / a runtime | No | Yes | Docker or emulation | No | No (runs on GitHub's infrastructure) |
+| Works offline | Yes | Needs the Docker daemon; pulls runner images on first use | Mostly | Yes | No |
+
+`act -n` (dry run) and `act -l` list jobs for an event, but they don't evaluate
+your actual push's branch/paths against the filters, and they can't tell you
+*why* something didn't match. That "why" is the entire point of actwhy.
 
 ## CLI reference
 
@@ -115,7 +122,7 @@ Simulate a pull request against a base branch.
 
 | Flag | Description |
 |---|---|
-| `--base <branch>` | Base (target) branch — what `branches:` filters match against. **Required.** |
+| `--base <branch>` | Base (target) branch — what `branches:` filters match against. Default: the repo's default branch (else `main`). |
 | `--head <branch>` | Head (source) branch. Default: the current git branch. |
 | `--type <activity>` | Activity type to simulate (`opened`, `synchronize`, `reopened`, …). Default: `opened`. |
 | `--draft` | Simulate a draft pull request. |
@@ -141,8 +148,9 @@ For the precise boundaries of v0.1 — which events are evaluated versus classif
 Before release, we pushed 12 crafted workflows and 13 ref events (commits with
 disjoint changed-file sets, seven branches probing the pattern grammar, one tag)
 to a scratch GitHub repository and recorded which workflows GitHub actually ran.
-**All 25 workflow-level trigger decisions and all 3 job-level `if:` decisions
-matched actwhy's predictions** — including the `?`/`+` quantifier semantics,
+GitHub started **24 workflow runs across those 13 events — actwhy predicted
+exactly those 24 and none of the ~130 other workflow×event combinations, and
+all 3 job-level `if:` decisions matched** — including the `?`/`+` quantifier semantics,
 `!` negation re-includes, `paths-ignore`'s all-files rule, tag-push versus
 branch-filter interplay, and the always-true `if:` footgun (GitHub really does
 run that job). The raw Actions API data and the case-by-case table live in

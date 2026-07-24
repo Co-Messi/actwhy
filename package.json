@@ -1,7 +1,7 @@
 {
   "name": "actwhy",
   "version": "0.1.0",
-  "description": "Know which GitHub Actions workflows will fire — and exactly why the others won't — before you push.",
+  "description": "Know which GitHub Actions workflows will fire \u2014 and exactly why the others won't \u2014 before you push.",
   "keywords": [
     "github-actions",
     "ci",
@@ -42,8 +42,8 @@
     "prepare": "npm run build"
   },
   "dependencies": {
-    "@actions/expressions": "^0.3.60",
-    "@actions/workflow-parser": "^0.3.60",
+    "@actions/expressions": "0.3.60",
+    "@actions/workflow-parser": "0.3.60",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {

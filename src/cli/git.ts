@@ -81,27 +81,43 @@ export function changedFilesForPush(dir: string): ChangedFiles | null {
   const pushName = refName("@{push}", dir);
   if (pushName) {
     const out = git(["diff", "--name-only", "@{push}..HEAD"], dir);
-    if (out !== null) return { files: uniqLines(out), source: `vs upstream ${pushName}` };
+    if (out !== null) {
+      const files = uniqLines(out);
+      // In-sync branch (0 outgoing commits): an empty set would produce a
+      // false "NOTHING fires". The question the user is asking is "what did
+      // my last push trigger?" — simulate the last commit instead.
+      if (files.length > 0) return { files, source: `vs upstream ${pushName}` };
+      return lastCommitFiles(dir, `in sync with ${pushName} — simulating the last commit's push`) ?? { files, source: `vs upstream ${pushName}` };
+    }
   }
 
   const upName = refName("@{u}", dir);
   if (upName) {
     const out = git(["diff", "--name-only", "@{u}..HEAD"], dir);
-    if (out !== null) return { files: uniqLines(out), source: `vs upstream ${upName}` };
+    if (out !== null) {
+      const files = uniqLines(out);
+      if (files.length > 0) return { files, source: `vs upstream ${upName}` };
+      return lastCommitFiles(dir, `in sync with ${upName} — simulating the last commit's push`) ?? { files, source: `vs upstream ${upName}` };
+    }
   }
 
   // No upstream: fall back to the most recent commit.
-  const hasParent = git(["rev-parse", "--verify", "-q", "HEAD~1"], dir);
-  if (hasParent !== null) {
-    const out = git(["diff", "--name-only", "HEAD~1..HEAD"], dir);
-    if (out !== null) return { files: uniqLines(out), source: "last commit only (no upstream)" };
-  }
+  const fallback = lastCommitFiles(dir, "last commit only (no upstream)");
+  if (fallback) return fallback;
 
   // Single-commit repo: HEAD has no parent, so show HEAD's own files.
   const out = git(["show", "--name-only", "--format=", "HEAD"], dir);
   if (out !== null) return { files: uniqLines(out), source: "first commit (all files)" };
 
   return null;
+}
+
+function lastCommitFiles(dir: string, source: string): ChangedFiles | null {
+  const hasParent = git(["rev-parse", "--verify", "-q", "HEAD~1"], dir);
+  if (hasParent === null) return null;
+  const out = git(["diff", "--name-only", "HEAD~1..HEAD"], dir);
+  if (out === null) return null;
+  return { files: uniqLines(out), source };
 }
 
 /** Result of inferring a PR's changed files; `files` is null when it can't be diffed. */

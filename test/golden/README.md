@@ -6,9 +6,11 @@ GitHub repository and recorded which workflows GitHub actually ran
 (`live-runs-raw.json`, from the Actions REST API) and the per-job
 conclusions for the `if:` cases.
 
-Every actwhy prediction matched real GitHub behavior — 25/25 workflow-level
-trigger decisions and 3/3 job-level `if:` decisions, including the cases
-most tools get wrong:
+Every actwhy prediction matched real GitHub behavior: GitHub started 24
+workflow runs across the 13 ref events, actwhy predicted exactly those 24
+fired (and predicted "skip" for every other workflow×event combination that
+did not run), and all 3 job-level `if:` decisions matched — including the
+cases most tools get wrong:
 
 | Semantics probed | Case | GitHub did | actwhy predicts |
 |---|---|---|---|

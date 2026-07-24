@@ -20,12 +20,8 @@
 
   <!-- tagline -->
   <text x="82" y="238" font-size="34" font-weight="700" fill="#e7ecf3" letter-spacing="-1">Know which GitHub Actions workflows</text>
-  <text x="82" y="284" font-size="34" font-weight="700" letter-spacing="-1">
-    <tspan fill="#45dd82">will fire</tspan><tspan fill="#e7ecf3"> — and exactly </tspan><tspan fill="#38e6f5">why</tspan><tspan fill="#e7ecf3"> the</tspan>
-  </text>
-  <text x="82" y="330" font-size="34" font-weight="700" letter-spacing="-1">
-    <tspan fill="#ff6159">others won't</tspan><tspan fill="#e7ecf3"> — before you push.</tspan>
-  </text>
+  <text x="82" y="284" font-size="34" font-weight="700" letter-spacing="-1" xml:space="preserve"><tspan fill="#45dd82">will fire</tspan><tspan fill="#e7ecf3"> — and exactly </tspan><tspan fill="#38e6f5">why</tspan><tspan fill="#e7ecf3"> the</tspan></text>
+  <text x="82" y="330" font-size="34" font-weight="700" letter-spacing="-1" xml:space="preserve"><tspan fill="#ff6159">others won't</tspan><tspan fill="#e7ecf3"> — before you push.</tspan></text>
 
   <!-- verdict rows -->
   <g font-size="26">
@@ -33,21 +29,21 @@
     <rect x="80" y="392" width="4" height="58" rx="2" fill="#45dd82"/>
     <text x="112" y="428" fill="#45dd82" font-weight="700">✔</text>
     <text x="148" y="428" fill="#e7ecf3" font-weight="700">docs.yml</text>
-    <text x="1012" y="428" fill="#45dd82" font-weight="700" letter-spacing="2">FIRES</text>
+    <text x="1100" y="428" text-anchor="end" fill="#45dd82" font-weight="700" letter-spacing="2">FIRES</text>
 
     <rect x="80" y="462" width="1040" height="58" rx="9" fill="#111419" stroke="#1e232c"/>
     <rect x="80" y="462" width="4" height="58" rx="2" fill="#ff6159"/>
     <text x="112" y="498" fill="#ff6159" font-weight="700">✘</text>
     <text x="148" y="498" fill="#e7ecf3" font-weight="700">ci.yml</text>
-    <text x="230" y="498" fill="#8b95a4" font-size="20">all changed files match paths-ignore</text>
-    <text x="980" y="498" fill="#ff6159" font-weight="700" letter-spacing="2">SKIPPED</text>
+    <text x="360" y="498" fill="#8b95a4" font-size="20">paths-ignore matched all files</text>
+    <text x="1100" y="498" text-anchor="end" fill="#ff6159" font-weight="700" letter-spacing="2">SKIPPED</text>
 
     <rect x="80" y="532" width="1040" height="58" rx="9" fill="#111419" stroke="#1e232c"/>
     <rect x="80" y="532" width="4" height="58" rx="2" fill="#ffb84d"/>
     <text x="112" y="568" fill="#ffb84d" font-weight="700">?</text>
     <text x="148" y="568" fill="#e7ecf3" font-weight="700">deploy.yml</text>
-    <text x="262" y="568" fill="#8b95a4" font-size="20">paths filter, but changed files unknown</text>
-    <text x="975" y="568" fill="#ffb84d" font-weight="700" letter-spacing="2">UNKNOWN</text>
+    <text x="360" y="568" fill="#8b95a4" font-size="20">depends on secrets.DEPLOY_KEY</text>
+    <text x="1100" y="568" text-anchor="end" fill="#ffb84d" font-weight="700" letter-spacing="2">UNKNOWN</text>
   </g>
 
   <text x="1120" y="150" text-anchor="end" font-size="20" fill="#8b95a4">npx actwhy</text>
