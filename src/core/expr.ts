@@ -22,6 +22,7 @@ import {
   IndexAccess,
   Literal,
   Logical,
+  Star,
   Unary,
 } from "@actions/expressions/ast";
 import * as data from "@actions/expressions/data/index";
@@ -282,6 +283,7 @@ export class TriEvaluator implements ExprVisitor<TriValue> {
     if (expr instanceof IndexAccess) {
       const base = this.staticPath(expr.expr);
       if (!base) return null;
+      if (expr.index instanceof Star) return [...base, "*"];
       if (expr.index instanceof Literal) {
         const lit = expr.index.literal;
         if (lit.kind === data.Kind.String) return [...base, (lit as data.StringData).value];
@@ -293,6 +295,8 @@ export class TriEvaluator implements ExprVisitor<TriValue> {
   }
 
   private resolvePath(path: string[]): TriValue {
+    if (path.includes("*")) return this.resolveFilteredPath(path);
+
     const dotted = path.join(".");
     let node: CtxValue | undefined = this.context[path[0]];
     if (node === undefined) return known(new data.Null());
@@ -335,6 +339,78 @@ export class TriEvaluator implements ExprVisitor<TriValue> {
     }
     if (d.primitive) this.reads.set(dotted, d.coerceString());
     return known(d);
+  }
+
+  /**
+   * Resolve GitHub's object-filter syntax (`labels.*.name`) without calling
+   * Star.accept(), which the upstream AST intentionally leaves unimplemented.
+   */
+  private resolveFilteredPath(path: string[]): TriValue {
+    const dotted = path.join(".");
+    let nodes: CtxValue[] = [this.context[path[0]] ?? null];
+    let filtering = false;
+
+    for (let i = 1; i < path.length; i++) {
+      const key = path[i];
+      const next: CtxValue[] = [];
+
+      for (const node of nodes) {
+        if (node instanceof Unk) {
+          return unknown("unknown", [
+            { path: dotted, why: node.why, hint: node.hint },
+          ]);
+        }
+
+        if (key === "*") {
+          filtering = true;
+          if (node instanceof PartialDict) {
+            return unknown("unknown", [
+              { path: dotted, why: node.why, hint: node.hint },
+            ]);
+          }
+          if (Array.isArray(node)) {
+            next.push(...node);
+          } else if (node !== null && typeof node === "object") {
+            next.push(...Object.values(node as Record<string, CtxValue>));
+          }
+          continue;
+        }
+
+        if (node instanceof PartialDict) {
+          if (key in node.entries) {
+            next.push(node.entries[key]);
+          } else {
+            return unknown("unknown", [
+              { path: dotted, why: node.why, hint: node.hint },
+            ]);
+          }
+          continue;
+        }
+        if (node !== null && typeof node === "object" && !Array.isArray(node)) {
+          const record = node as Record<string, CtxValue>;
+          if (key in record) next.push(record[key]);
+          else if (!filtering) next.push(null);
+          continue;
+        }
+        if (Array.isArray(node)) {
+          const index = Number(key);
+          if (Number.isInteger(index) && index >= 0 && index < node.length) {
+            next.push(node[index]);
+          } else if (!filtering) {
+            next.push(null);
+          }
+          continue;
+        }
+        if (!filtering) next.push(null);
+      }
+      nodes = next;
+    }
+
+    const value = toData(nodes);
+    if (value instanceof Unk || value instanceof PartialDict) {
+      return unknown("unknown", [{ path: dotted, why: value.why }]);
+    }
+    return known(value);
   }
 
   private indexInto(base: data.ExpressionData, index: data.ExpressionData): TriValue {
