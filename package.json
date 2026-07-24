@@ -1,0 +1,55 @@
+{
+  "name": "actwhy",
+  "version": "0.1.0",
+  "description": "Know which GitHub Actions workflows will fire — and exactly why the others won't — before you push.",
+  "keywords": [
+    "github-actions",
+    "ci",
+    "workflow",
+    "dry-run",
+    "simulate",
+    "triggers",
+    "paths-filter",
+    "branches-filter",
+    "debug",
+    "devtools",
+    "cli"
+  ],
+  "homepage": "https://actwhy.vercel.app",
+  "bugs": "https://github.com/Co-Messi/actwhy/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Co-Messi/actwhy.git"
+  },
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "actwhy": "dist/actwhy.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:web": "node web/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm run test && npm run build",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@actions/expressions": "^0.3.60",
+    "@actions/workflow-parser": "^0.3.60",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "esbuild": "^0.28.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}
