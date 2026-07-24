@@ -45,6 +45,9 @@ export function evaluateTrigger(events: EventsConfig, spec: EventSpec): TriggerR
     if (push === undefined) {
       return skip([noListenerReason("push", listeners)]);
     }
+    if (hasCommitSkipDirective(spec.commitMessage)) {
+      return skip([commitSkipReason()]);
+    }
     const isTag = spec.tag !== undefined;
     const refName = isTag ? spec.tag! : spec.branch ?? "";
 
@@ -100,6 +103,9 @@ export function evaluateTrigger(events: EventsConfig, spec: EventSpec): TriggerR
   if (pr === undefined) {
     return skip([noListenerReason(eventName, listeners)]);
   }
+  if (eventName === "pull_request" && hasCommitSkipDirective(spec.commitMessage)) {
+    return skip([commitSkipReason()]);
+  }
 
   const types = pr.types ?? DEFAULT_PR_TYPES;
   const activity = spec.activityType ?? "opened";
@@ -121,6 +127,22 @@ export function evaluateTrigger(events: EventsConfig, spec: EventSpec): TriggerR
   if (pathResult) return pathResult;
 
   return fires(warnings);
+}
+
+function hasCommitSkipDirective(message: string | undefined): boolean {
+  if (!message) return false;
+  const normalized = message.replace(/\r\n?/g, "\n");
+  if (/\[(?:skip ci|ci skip|no ci|skip actions|actions skip)\]/i.test(normalized)) {
+    return true;
+  }
+  return /(?:^|\n\n)skip-checks:\s*true\s*$/i.test(normalized);
+}
+
+function commitSkipReason(): Reason {
+  return {
+    code: "commit-message-skip",
+    message: "the commit message contains a GitHub Actions skip directive",
+  };
 }
 
 function noListenerReason(eventName: string, listeners: string[]): Reason {

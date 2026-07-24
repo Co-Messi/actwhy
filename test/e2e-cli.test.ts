@@ -16,6 +16,9 @@ on:
   push:
     branches: [main]
     paths: ['src/**']
+  pull_request:
+    branches: [main]
+    paths: ['src/**']
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -121,6 +124,26 @@ describe("actwhy CLI end-to-end", () => {
     expect(report.workflows[0].reasons[0].code).toBe("branch-filter-no-match");
     expect(report.nothingFires).toBe(true);
     expect(report.closestMiss?.file).toBe("ci.yml");
+  }, 30_000);
+
+  it("`pr -m` simulates a pull-request commit skip directive", async () => {
+    const { code, stdout } = await runCli([
+      "pr",
+      "-C",
+      fixtureDir,
+      "--base",
+      "main",
+      "--files",
+      "src/a.ts",
+      "-m",
+      "test: update [skip ci]",
+      "--json",
+    ]);
+    expect(code).toBe(0);
+
+    const report = JSON.parse(stdout) as Report;
+    expect(report.workflows[0].verdict).toBe("skipped");
+    expect(report.workflows[0].reasons[0].code).toBe("commit-message-skip");
   }, 30_000);
 
   it("an unknown flag exits 2 (usage error) with a help pointer on stderr", async () => {

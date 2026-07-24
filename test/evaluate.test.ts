@@ -245,6 +245,84 @@ jobs:
   });
 });
 
+describe("commit-message skip directives", () => {
+  const files = [
+    file(
+      "skip.yml",
+      `
+on: [push, pull_request, pull_request_target]
+jobs:
+  j: {runs-on: ubuntu-latest, steps: [{run: echo}]}
+`,
+    ),
+  ];
+
+  it.each([
+    "[skip ci]",
+    "[ci skip]",
+    "[no ci]",
+    "[skip actions]",
+    "[actions skip]",
+    "[SKIP CI]",
+  ])("skips push workflows for %s", async (directive) => {
+    const spec: PushSpec = {
+      kind: "push",
+      branch: "main",
+      files: ["src/a.ts"],
+      commitMessage: `chore: save time ${directive}`,
+    };
+    const w = wf(await evaluateWorkflows(files, spec), "skip.yml");
+    expect(w.verdict).toBe("skipped");
+    expect(codes(w.reasons)).toContain("commit-message-skip");
+  });
+
+  it.each(["skip-checks:true", "skip-checks: true"])(
+    "skips when the final commit trailer is %s",
+    async (trailer) => {
+      const spec: PushSpec = {
+        kind: "push",
+        branch: "main",
+        files: ["src/a.ts"],
+        commitMessage: `chore: save time\n\n${trailer}`,
+      };
+      const w = wf(await evaluateWorkflows(files, spec), "skip.yml");
+      expect(w.verdict).toBe("skipped");
+      expect(codes(w.reasons)).toContain("commit-message-skip");
+    },
+  );
+
+  it("does not mistake incidental prose for a skip directive", async () => {
+    const spec: PushSpec = {
+      kind: "push",
+      branch: "main",
+      files: ["src/a.ts"],
+      commitMessage: "docs: explain skip ci and skip-checks: true\n\nnot a trailer",
+    };
+    expect(wf(await evaluateWorkflows(files, spec), "skip.yml").verdict).toBe("fires");
+  });
+
+  it("applies to pull_request but not pull_request_target", async () => {
+    const base: PrSpec = {
+      kind: "pull_request",
+      base: "main",
+      files: ["src/a.ts"],
+      commitMessage: "test: update [skip ci]",
+    };
+    const pr = wf(await evaluateWorkflows(files, base), "skip.yml");
+    expect(pr.verdict).toBe("skipped");
+    expect(codes(pr.reasons)).toContain("commit-message-skip");
+
+    const target = wf(
+      await evaluateWorkflows(
+        files,
+        { ...base, event: "pull_request_target" },
+      ),
+      "skip.yml",
+    );
+    expect(target.verdict).toBe("fires");
+  });
+});
+
 // ── (c) workflow_dispatch only ───────────────────────────────────────────
 
 describe("(c) workflow_dispatch-only workflow", () => {

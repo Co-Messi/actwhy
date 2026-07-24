@@ -35,6 +35,8 @@ export interface PrSpec {
   /** Head (source) branch. */
   head?: string;
   files: string[] | null;
+  /** HEAD commit message, used for GitHub's pull-request skip directives. */
+  commitMessage?: string;
   /** Activity type being simulated. Default: "opened". */
   activityType?: string;
   draft?: boolean;
