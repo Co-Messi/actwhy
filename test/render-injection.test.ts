@@ -114,6 +114,45 @@ describe("renderReport sanitizes a skipped workflow + header + closest miss", ()
   });
 });
 
+// -- header: the tag-push and PR (base/head) branches of sanitizeReport ------
+//
+// sanitizeReport handles push (branch|tag) and pull_request (base|head) events
+// through SEPARATE code paths; the skipped-workflow test above only covers the
+// push-branch path, so a regression dropping clean() from the tag or PR branch
+// would slip by. Cover them explicitly.
+
+describe("renderReport sanitizes tag-push and pull_request headers", () => {
+  it("strips an ESC smuggled through a pushed tag name", () => {
+    const report: Report = {
+      event: { kind: "push", tag: `v1.0${ESC}[32mFORGEDTAG`, files: ["a.ts"] } as PushSpec,
+      workflows: [],
+      summary: summary({ workflowsTotal: 0 }),
+      nothingFires: false,
+    };
+    const out = renderReport(report, { color: false });
+    expect(out.includes(ESC)).toBe(false);
+    expect(out).toContain("FORGEDTAG");
+  });
+
+  it("strips ESC from both the PR base and head branch names", () => {
+    const report: Report = {
+      event: {
+        kind: "pull_request",
+        base: `release${ESC}[32mFORGEDBASE`,
+        head: `feat${ESC}[4mFORGEDHEAD`,
+        files: [],
+      },
+      workflows: [],
+      summary: summary({ workflowsTotal: 0 }),
+      nothingFires: false,
+    };
+    const out = renderReport(report, { color: false });
+    expect(out.includes(ESC)).toBe(false);
+    expect(out).toContain("FORGEDBASE");
+    expect(out).toContain("FORGEDHEAD");
+  });
+});
+
 // -- firing workflow: job id, matrix note, step name, workflow warning -------
 
 describe("renderReport sanitizes firing job / step / matrix-note fields", () => {
