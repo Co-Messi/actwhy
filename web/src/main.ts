@@ -3,7 +3,8 @@
  * re-evaluating (debounced) on every change and rendering the verdict tree.
  */
 import { el, must, clear } from "./dom.js";
-import { evaluate, type AppState, type EventKind } from "./engine.js";
+import { evaluate, type AppState, type EventKind, type Report } from "./engine.js";
+import type { ResolutionActionId } from "./actions.js";
 import { EXAMPLES, cloneExampleState } from "./examples.js";
 import { encodeState, decodeState } from "./share.js";
 import { renderReport, renderError } from "./render.js";
@@ -40,14 +41,49 @@ const resultsEl = must("#results");
 const exampleSelect = must<HTMLSelectElement>("#example-select");
 const shareBtn = must<HTMLButtonElement>("#share-btn");
 const shareFeedback = must("#share-feedback");
+const focusEditorBtn = must<HTMLButtonElement>("#focus-editor");
+const mobileVerdict = must<HTMLButtonElement>("#mobile-verdict");
+const mobileVerdictText = must("#mobile-verdict-text");
 const pushFields = must("#push-fields");
 const tagFields = must("#tag-fields");
 const prFields = must("#pr-fields");
-const commitField = must("#commit-field");
 
 // --------------------------------------------------------------- evaluate ---
 let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 let runToken = 0;
+let verdictSignature = "";
+
+function reportSignature(report: Report): string {
+  return report.workflows
+    .map((workflow) => {
+      const jobs = workflow.jobs.map((job) => `${job.id}:${job.verdict}`).join(",");
+      return `${workflow.file}:${workflow.verdict}:${jobs}`;
+    })
+    .join("|");
+}
+
+function updateVerdictSummary(report: Report): void {
+  const summary = report.summary;
+  const nextSignature = reportSignature(report);
+  const changed = verdictSignature !== "" && nextSignature !== verdictSignature;
+  verdictSignature = nextSignature;
+
+  const parts = [`${summary.workflowsFiring}/${summary.workflowsTotal} fire`];
+  if (summary.workflowsSkipped > 0) parts.push(`${summary.workflowsSkipped} skipped`);
+  if (summary.workflowsUnknown > 0) parts.push(`${summary.workflowsUnknown} unknown`);
+  if (summary.workflowsError > 0) parts.push(`${summary.workflowsError} error`);
+  mobileVerdictText.textContent = parts.join(" · ");
+  mobileVerdict.hidden = false;
+
+  resultsEl.classList.toggle("results--verdict-changed", changed);
+  mobileVerdict.classList.toggle("mobile-verdict--changed", changed);
+  if (changed) {
+    window.setTimeout(() => {
+      resultsEl.classList.remove("results--verdict-changed");
+      mobileVerdict.classList.remove("mobile-verdict--changed");
+    }, 650);
+  }
+}
 
 async function runEvaluate(): Promise<void> {
   const token = ++runToken;
@@ -55,6 +91,7 @@ async function runEvaluate(): Promise<void> {
     const report = await evaluate(state);
     if (token !== runToken) return; // a newer run superseded this one
     renderReport(report, resultsEl);
+    updateVerdictSummary(report);
   } catch (err) {
     if (token !== runToken) return;
     renderError(err instanceof Error ? err.message : String(err), resultsEl);
@@ -213,7 +250,6 @@ function updateEventVisibility(): void {
   pushFields.hidden = state.event !== "push";
   tagFields.hidden = state.event !== "tag";
   prFields.hidden = state.event !== "pull_request";
-  commitField.hidden = state.event === "pull_request";
 }
 
 /** Push current state values into the control inputs. */
@@ -233,6 +269,14 @@ function syncControls(): void {
 // ------------------------------------------------------------------ share ---
 let feedbackTimer: ReturnType<typeof setTimeout> | undefined;
 
+function showShareFeedback(message: string): void {
+  clear(shareFeedback);
+  shareFeedback.append(document.createTextNode(message));
+  shareFeedback.classList.add("share-feedback--show");
+  clearTimeout(feedbackTimer);
+  feedbackTimer = setTimeout(() => shareFeedback.classList.remove("share-feedback--show"), 2600);
+}
+
 async function share(): Promise<void> {
   const hash = "#" + encodeState(state);
   history.replaceState(null, "", location.pathname + location.search + hash);
@@ -244,11 +288,35 @@ async function share(): Promise<void> {
   } catch {
     copied = false;
   }
-  clear(shareFeedback);
-  shareFeedback.append(document.createTextNode(copied ? "link copied" : "link in address bar"));
-  shareFeedback.classList.add("share-feedback--show");
-  clearTimeout(feedbackTimer);
-  feedbackTimer = setTimeout(() => shareFeedback.classList.remove("share-feedback--show"), 2200);
+  showShareFeedback(copied ? "link copied — review before sharing" : "link ready in address bar");
+}
+
+function focusField(field: HTMLInputElement | HTMLTextAreaElement): void {
+  field.scrollIntoView({ behavior: "smooth", block: "center" });
+  field.focus({ preventScroll: true });
+  if (field instanceof HTMLInputElement) field.select();
+  else field.setSelectionRange(field.value.length, field.value.length);
+}
+
+async function handleResolution(id: ResolutionActionId, text: string): Promise<void> {
+  if (id === "test-branch") {
+    focusField(state.event === "pull_request" ? prBaseEl : branchEl);
+  } else if (id === "add-path") {
+    focusField(changedEl);
+  } else if (id === "switch-pr") {
+    setEvent("pull_request");
+    prBaseEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    prBaseEl.focus({ preventScroll: true });
+  } else if (id === "copy-reason") {
+    try {
+      await navigator.clipboard.writeText(text);
+      showShareFeedback("reason copied");
+    } catch {
+      showShareFeedback("copy unavailable");
+    }
+  } else {
+    await share();
+  }
 }
 
 // --------------------------------------------------------------- examples ---
@@ -315,6 +383,14 @@ function wireInputs(): void {
   });
 
   shareBtn.addEventListener("click", () => void share());
+  focusEditorBtn.addEventListener("click", () => focusField(editorEl));
+  mobileVerdict.addEventListener("click", () => {
+    document.querySelector(".panel--out")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  resultsEl.addEventListener("actwhy:resolution", (event) => {
+    const detail = (event as CustomEvent<{ id: ResolutionActionId; text: string }>).detail;
+    if (detail) void handleResolution(detail.id, detail.text);
+  });
 
   for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>("[data-copy]"))) {
     btn.addEventListener("click", async () => {
