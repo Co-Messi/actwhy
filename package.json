@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@actions/expressions": "0.3.60",
-    "@actions/workflow-parser": "0.3.60",
+    "@actions/workflow-parser": "0.3.61",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {
