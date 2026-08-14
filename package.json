@@ -42,7 +42,7 @@
     "prepare": "npm run build"
   },
   "dependencies": {
-    "@actions/expressions": "0.3.60",
+    "@actions/expressions": "0.3.61",
     "@actions/workflow-parser": "0.3.60",
     "picocolors": "^1.1.1"
   },
